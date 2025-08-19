@@ -1,0 +1,29 @@
+@layer components {
+	.input {
+		@apply w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand bg-white;
+	}
+	.btn {
+		@apply inline-flex items-center justify-center rounded bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-600 transition-colors;
+	}
+	.btn-secondary {
+		@apply bg-gray-800 hover:bg-gray-700 text-white;
+	}
+	.table {
+		@apply w-full border border-gray-200 rounded overflow-hidden;
+	}
+	.table thead tr {
+		@apply bg-gray-50 text-left text-xs text-gray-600;
+	}
+	.table th, .table td {
+		@apply px-3 py-2 border-b border-gray-200;
+	}
+	.form-grid {
+		@apply grid grid-cols-1 md:grid-cols-2 gap-3 text-sm;
+	}
+	.form-grid > label {
+		@apply grid grid-cols-[160px_1fr] items-center gap-2;
+	}
+}
+
+
+

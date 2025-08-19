@@ -1,0 +1,23 @@
+@import './ui/components/ui.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+	--sidebar-w: 220px;
+}
+
+html, body, #root {
+	height: 100%;
+}
+
+body {
+	@apply bg-gray-50 text-gray-900;
+}
+
+.nav-step-active {
+	@apply text-brand font-semibold;
+}
+
+
