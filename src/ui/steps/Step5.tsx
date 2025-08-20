@@ -46,7 +46,7 @@ interface IngestionConfig {
 }
 
 export default function Step5() {
-	const { currentProtocolId, protocols, currentColumnId, columns, updateKafka } = useAppState()
+	const { currentProtocolId, currentColumnId, columns, updateKafka, components } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [saveMessage, setSaveMessage] = useState('')
 	const [configFile, setConfigFile] = useState<File | null>(null)
@@ -66,18 +66,19 @@ export default function Step5() {
 	})
 	
 	const fileInputRef = useRef<HTMLInputElement>(null)
-	const currentProtocol = protocols.find(p => p.id === currentProtocolId)
+	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
 	const currentColumn = columns.find(c => c.id === currentColumnId)
 
 	// 从Step2获取字段映射结果
-	const mappingRules = currentProtocol?.mappingRules || []
+	const step2Component = components.find(c => c.name === "step2")
+	const mappingRules = step2Component?.mapping_rules || []
 
 	// 初始化字段映射选择状态
 	useEffect(() => {
 		if (mappingRules.length > 0) {
 			const initialSelection: {[key: string]: boolean} = {}
-			mappingRules.forEach(rule => {
-				initialSelection[rule.targetKey] = true // 默认选中所有映射字段
+			mappingRules.forEach((rule: any) => {
+				initialSelection[rule.target_key] = true // 默认选中所有映射字段
 			})
 			setMappingFieldsSelection(initialSelection)
 		}
@@ -316,9 +317,9 @@ export default function Step5() {
 			
 			// 构建保存的配置数据
 			const configToSave = {
-				protocol_id: currentProtocolId,
+				column_id: currentColumnId || 'default-column',
 				chain_name: selectedChain,
-				protocol_type: currentProtocol?.type?.toLowerCase() || 'dex',
+				protocol_type: 'event_monitor',
 				kafka_config: {
 					servers: configData.kafka.servers,
 					topics: chainConfig.kafka.topics,
@@ -335,8 +336,8 @@ export default function Step5() {
 					mapper: chainConfig.mapper[selectedTable] || 'defaultMapper'
 				},
 				mapping_fields: selectedMappingFields,
-				field_mappings: mappingRules.filter(rule => 
-					selectedMappingFields.includes(rule.targetKey)
+				field_mappings: mappingRules.filter((rule: any) => 
+					selectedMappingFields.includes(rule.target_key)
 				),
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
@@ -350,7 +351,7 @@ export default function Step5() {
 				
 				// 更新本地状态
 				if (currentColumnId) {
-					updateKafka(currentColumnId, configToSave.kafka_config)
+					updateKafka(currentColumnId, { enableCompression: true, retryBackoff: true })
 				}
 			} else {
 				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
@@ -402,18 +403,18 @@ export default function Step5() {
 							以下是从Step2获取的字段映射规则，请选择要入库的字段：
 						</p>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
-							{mappingRules.map(rule => (
-								<label key={rule.id} className="flex items-start space-x-3 text-sm">
+							{mappingRules.map((rule: any, index: number) => (
+								<label key={index} className="flex items-start space-x-3 text-sm">
 									<input
 										type="checkbox"
-										checked={mappingFieldsSelection[rule.targetKey] || false}
-										onChange={() => toggleMappingFieldSelection(rule.targetKey)}
+										checked={mappingFieldsSelection[rule.target_key] || false}
+										onChange={() => toggleMappingFieldSelection(rule.target_key)}
 										className="mt-1 rounded border-gray-300 text-brand focus:ring-brand"
 									/>
 									<div className="flex-1">
-										<div className="font-medium">{rule.targetKey}</div>
+										<div className="font-medium">{rule.target_key}</div>
 										<div className="text-xs text-gray-500">
-											源字段: {rule.sourceKey} → 转换器: {rule.transformer}
+											源字段: {rule.source_key} → 转换器: {rule.transformer || '无转换'}
 										</div>
 										{rule.description && (
 											<div className="text-xs text-gray-400">{rule.description}</div>

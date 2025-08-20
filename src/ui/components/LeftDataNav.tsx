@@ -5,7 +5,6 @@ import { useState } from 'react'
 export default function LeftDataNav() {
 	const { 
 		chains, 
-		protocols, 
 		columns,
 		currentChainId, 
 		currentProtocolId, 
@@ -13,12 +12,10 @@ export default function LeftDataNav() {
 		createChain, 
 		deleteChain, 
 		setCurrentChain,
-		createProtocol, 
-		deleteProtocol, 
-		setCurrentProtocol,
 		createColumn, 
 		deleteColumn, 
-		setCurrentColumn
+		setCurrentColumn,
+		components
 	} = useAppState()
 
 	const navigate = useNavigate()
@@ -57,13 +54,10 @@ export default function LeftDataNav() {
 
 	const confirmCreateProtocol = (chain: any, bizType: any) => {
 		if (newProtocolName.trim()) {
-			createProtocol(chain, bizType, newProtocolName.trim())
+			// 协议创建功能已移除，直接跳转到Step1
 			setShowProtocolInput('')
 			setNewProtocolName('')
-			// 创建协议后自动跳转到Step1
-			setTimeout(() => {
-				navigate('/step-1')
-			}, 100)
+			navigate('/step-1')
 		}
 	}
 
@@ -130,7 +124,7 @@ export default function LeftDataNav() {
 									{/* Business Types under this chain */}
 									{bizTypes.map(bizType => {
 										const chainBizTypeKey = `${chain.id}-${bizType}`
-										const protocolsInThisBizType = protocols.filter(p => p.chain === chain.chain && p.type === bizType)
+										const protocolsInThisBizType = [] // 不再使用 protocols 数组
 										
 										return (
 											<div key={bizType}>
@@ -203,13 +197,7 @@ export default function LeftDataNav() {
 																	{protocol.name}
 																</button>
 																<div className="flex gap-1 opacity-0 group-hover:opacity-100">
-																	<button
-																		onClick={() => deleteProtocol(protocol.id)}
-																		className="text-xs px-1.5 py-0.5 bg-red-500 text-white rounded hover:bg-red-600"
-																		title="Delete Protocol"
-																	>
-																		×
-																	</button>
+																	
 																</div>
 															</div>
 														))}
@@ -228,7 +216,7 @@ export default function LeftDataNav() {
 			{/* Footer */}
 			<div className="p-4 border-t border-gray-200">
 				<div className="text-xs text-gray-500">
-					{protocols.length} protocols configured
+					{components.length} components configured
 				</div>
 			</div>
 		</div>

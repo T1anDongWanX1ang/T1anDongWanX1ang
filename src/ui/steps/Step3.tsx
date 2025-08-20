@@ -5,7 +5,7 @@ import { useState, useRef } from 'react'
 import { fieldParsingAPI } from '../../services/api'
 
 export default function Step3() {
-	const { currentProtocolId, protocols } = useAppState()
+	const { currentProtocolId, components } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [validationResults, setValidationResults] = useState<{
 		logs: { valid: boolean; errors: string[]; warnings: string[]; message: string } | null
@@ -23,8 +23,9 @@ export default function Step3() {
 	const [customLogData, setCustomLogData] = useState('')
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	
-	const currentProtocol = protocols.find(p => p.id === currentProtocolId)
-	const mappingRules = currentProtocol?.mappingRules || []
+	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
+	const step2Component = components.find(c => c.name === "step2") // 从 components 获取 step2 数据
+	const mappingRules = step2Component?.mapping_rules || []
 
 	// 处理日志文件上传
 	const handleLogFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

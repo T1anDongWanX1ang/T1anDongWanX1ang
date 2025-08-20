@@ -99,6 +99,38 @@ export interface ValidationResponse {
 	}
 }
 
+// 文件上传相关接口
+export interface FileUploadRequest {
+	file: File
+}
+
+export interface FileUploadResponse {
+	success: boolean
+	message: string
+	file_path: string
+	file_name: string
+	file_size: number
+	upload_time: string
+}
+
+// Pipeline Tree 相关类型
+export interface PipelineTreeNode {
+	id: number
+	parent_id: number | null
+	name: string
+	description: string | null
+	create_time: string
+	update_time: string | null
+	type: 'classification' | 'pipeline'
+	children: PipelineTreeNode[]
+}
+
+export interface PipelineTreeResponse {
+	success: boolean
+	message: string
+	data: PipelineTreeNode[]
+}
+
 // API函数
 export const fieldParsingAPI = {
 	// 解析字段映射
@@ -363,10 +395,86 @@ export const validationAPI = {
 	}
 }
 
+// 文件管理API
+export const fileAPI = {
+	// 上传文件
+	uploadFile: async (file: File): Promise<FileUploadResponse> => {
+		const formData = new FormData()
+		formData.append('file', file)
+		
+		// 使用指定的API地址
+		const url = 'http://localhost:8001/api/v1/file/upload'
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				body: formData,
+				// 不设置Content-Type，让浏览器自动设置multipart/form-data
+				headers: {
+					'Accept': 'application/json',
+					'X-Requested-With': 'XMLHttpRequest'
+				},
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			return await response.json()
+		} catch (error) {
+			console.error('File upload failed:', error)
+			throw error
+		}
+	}
+}
+
+// Pipeline 相关API
+export const pipelineAPI = {
+	// 获取管道树形结构
+	getTree: async (): Promise<PipelineTreeResponse> => {
+		const url = 'http://localhost:8001/api/v1/pipeline/tree'
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			return await response.json()
+		} catch (error) {
+			console.error('Pipeline tree request failed:', error)
+			throw error
+		}
+	}
+}
+
 // 导出所有API
 export const api = {
 	fieldParsing: fieldParsingAPI,
 	chain: chainAPI,
 	protocol: protocolAPI,
-	validation: validationAPI
+	validation: validationAPI,
+	file: fileAPI,
+	pipeline: pipelineAPI
 }

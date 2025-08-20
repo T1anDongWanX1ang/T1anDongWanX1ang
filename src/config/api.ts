@@ -39,6 +39,11 @@ export const API_ENDPOINTS = {
 		validateLogs: '/api/v1/validation/logs',
 		validateSQL: '/api/v1/validation/sql',
 		validateKafka: '/api/v1/validation/kafka'
+	},
+	
+	// 文件管理相关
+	file: {
+		upload: '/api/v1/file/upload'
 	}
 }
 
