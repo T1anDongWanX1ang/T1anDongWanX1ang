@@ -1,0 +1,276 @@
+{
+  "job": {
+    "name": "MultiChainTokenJob"
+  },
+  "kafka": {
+    "servers": "10.138.0.2:9092"
+  },
+  "chains": [
+    "solana",
+    "bsc",
+    "base",
+    "eth"
+  ],
+  "chainConfigs": {
+    "solana": {
+      "id": 501,
+      "kafka": {
+        "topics": "Token",
+        "groupId": "flink_token_solana_v1"
+      },
+      "doris": {
+        "host": "10.129.0.5",
+        "port": "8030",
+        "user": "token",
+        "password": "token_cjhdyu@8dh7e",
+        "db": "trade_data"
+      },
+      "mapper": {
+        "token": "convertTokenVoToJson",
+        "token_ext": "convertTokenExtToJson"
+      },
+      "tables": {
+        "token": {
+          "name": "token",
+          "columns": [
+            "chain_id",
+            "name",
+            "symbol",
+            "address",
+            "decimal",
+            "logo",
+            "uri",
+            "home_page",
+            "description",
+            "twitter",
+            "twitter_link",
+            "telegram",
+            "telegram_link",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        },
+        "token_ext": {
+          "name": "token_ext",
+          "columns": [
+            "chain_id",
+            "address",
+            "blue_chip",
+            "publisher",
+            "total_supply",
+            "mint_discard",
+            "black_list",
+            "publish_time",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        }
+      }
+    },
+    "bsc": {
+      "id": 56,
+      "kafka": {
+        "topics": "Token_evm",
+        "groupId": "flink_token_bsc_v1"
+      },
+      "doris": {
+        "host": "10.129.0.3",
+        "port": "8030",
+        "user": "token",
+        "password": "token_yCRvka35@yu9b3D",
+        "db": "trade_data"
+      },
+      "mapper": {
+        "token": "convertTokenVoToJsonBsc",
+        "token_ext": "convertTokenExtToJsonBsc"
+      },
+      "tables": {
+        "token": {
+          "name": "token",
+          "columns": [
+            "chain_id",
+            "name",
+            "symbol",
+            "address",
+            "decimal",
+            "logo",
+            "uri",
+            "home_page",
+            "description",
+            "twitter",
+            "twitter_link",
+            "telegram",
+            "telegram_link",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        },
+        "token_ext": {
+          "name": "token_ext",
+          "columns": [
+            "chain_id",
+            "address",
+            "blue_chip",
+            "publisher",
+            "total_supply",
+            "mint_discard",
+            "black_list",
+            "publish_time",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        }
+      }
+    },
+    "base": {
+      "id": 8453,
+      "kafka": {
+        "topics": "Token_evm",
+        "groupId": "flink_token_base_v1"
+      },
+      "doris": {
+        "host": "10.129.0.3",
+        "port": "8030",
+        "user": "token",
+        "password": "token_yCRvka35@yu9b3D",
+        "db": "base_trade_data"
+      },
+      "mapper": {
+        "token": "convertTokenVoToJsonBsc",
+        "token_ext": "convertTokenExtToJsonBsc"
+      },
+      "tables": {
+        "token": {
+          "name": "token",
+          "columns": [
+            "chain_id",
+            "name",
+            "symbol",
+            "address",
+            "decimal",
+            "logo",
+            "uri",
+            "home_page",
+            "description",
+            "twitter",
+            "twitter_link",
+            "telegram",
+            "telegram_link",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        },
+        "token_ext": {
+          "name": "token_ext",
+          "columns": [
+            "chain_id",
+            "address",
+            "blue_chip",
+            "publisher",
+            "total_supply",
+            "mint_discard",
+            "black_list",
+            "publish_time",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        }
+      }
+    },
+    "eth": {
+      "id": 1,
+      "kafka": {
+        "topics": "Token_evm",
+        "groupId": "flink_token_eth_v1"
+      },
+      "doris": {
+        "host": "10.129.0.3",
+        "port": "8030",
+        "user": "token",
+        "password": "token_yCRvka35@yu9b3D",
+        "db": "eth_trade_data"
+      },
+      "mapper": {
+        "token": "convertTokenVoToJsonEth",
+        "token_ext": "convertTokenExtToJsonEth"
+      },
+      "tables": {
+        "token": {
+          "name": "token",
+          "columns": [
+            "chain_id",
+            "name",
+            "symbol",
+            "address",
+            "decimal",
+            "logo",
+            "uri",
+            "home_page",
+            "description",
+            "twitter",
+            "twitter_link",
+            "telegram",
+            "telegram_link",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        },
+        "token_ext": {
+          "name": "token_ext",
+          "columns": [
+            "chain_id",
+            "address",
+            "blue_chip",
+            "publisher",
+            "total_supply",
+            "mint_discard",
+            "black_list",
+            "publish_time",
+            "data_time",
+            "create_time",
+            "update_time",
+            "__DORIS_DELETE_SIGN__"
+          ],
+          "buffer": {
+            "size": 1024
+          }
+        }
+      }
+    }
+  }
+}

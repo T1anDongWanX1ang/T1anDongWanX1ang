@@ -1,13 +1,60 @@
 import Box from '../components/Box'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../../state/AppState'
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI } from '../../services/api'
 
+// 定义JSON配置的类型
+interface ChainConfig {
+	id: number
+	kafka: {
+		topics: string
+		groupId: string
+	}
+	doris: {
+		host: string
+		port: string
+		user: string
+		password: string
+		db: string
+	}
+	mapper: {
+		[key: string]: string
+	}
+	tables: {
+		[tableName: string]: {
+			name: string
+			columns: string[]
+			buffer: {
+				size: number
+			}
+		}
+	}
+}
+
+interface IngestionConfig {
+	job: {
+		name: string
+	}
+	kafka: {
+		servers: string
+	}
+	chains: string[]
+	chainConfigs: {
+		[chainName: string]: ChainConfig
+	}
+}
+
 export default function Step5() {
-	const { currentColumnId, columns, updateKafka } = useAppState()
+	const { currentProtocolId, protocols, currentColumnId, columns, updateKafka } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [saveMessage, setSaveMessage] = useState('')
+	const [configFile, setConfigFile] = useState<File | null>(null)
+	const [configData, setConfigData] = useState<IngestionConfig | null>(null)
+	const [selectedChain, setSelectedChain] = useState<string>('')
+	const [selectedTable, setSelectedTable] = useState<string>('')
+	const [selectedColumns, setSelectedColumns] = useState<string[]>([])
+	const [mappingFieldsSelection, setMappingFieldsSelection] = useState<{[key: string]: boolean}>({})
 	const [testResults, setTestResults] = useState<{
 		kafka: { success: boolean; message: string; details?: any } | null
 		doris: { success: boolean; message: string; details?: any } | null
@@ -18,62 +65,117 @@ export default function Step5() {
 		overall: null
 	})
 	
+	const fileInputRef = useRef<HTMLInputElement>(null)
+	const currentProtocol = protocols.find(p => p.id === currentProtocolId)
 	const currentColumn = columns.find(c => c.id === currentColumnId)
-	const kafkaConfig = currentColumn?.kafka || {
-		enableCompression: false,
-		retryBackoff: false,
-		batchSize: 1000,
-		lingerMs: 100,
-		bufferMemory: 33554432,
-		acks: '1',
-		compressionType: 'none',
-		maxInFlightRequests: 5,
-		requestTimeoutMs: 30000,
-		deliveryTimeoutMs: 120000
-	}
-	
-	const [kafkaSettings, setKafkaSettings] = useState(kafkaConfig)
-	const [dorisSettings, setDorisSettings] = useState({
-		host: 'localhost',
-		port: 9030,
-		username: 'root',
-		password: '',
-		database: 'blockchain_data',
-		table: 'processed_events',
-		batchSize: 1000,
-		flushInterval: 5000,
-		maxRetries: 3,
-		timeout: 30000
-	})
 
-	// 初始化配置
+	// 从Step2获取字段映射结果
+	const mappingRules = currentProtocol?.mappingRules || []
+
+	// 初始化字段映射选择状态
 	useEffect(() => {
-		if (currentColumn?.kafka) {
-			setKafkaSettings(currentColumn.kafka)
+		if (mappingRules.length > 0) {
+			const initialSelection: {[key: string]: boolean} = {}
+			mappingRules.forEach(rule => {
+				initialSelection[rule.targetKey] = true // 默认选中所有映射字段
+			})
+			setMappingFieldsSelection(initialSelection)
 		}
-	}, [currentColumn])
+	}, [mappingRules])
 
-	// 更新Kafka设置
-	const updateKafkaSetting = (key: string, value: any) => {
-		setKafkaSettings(prev => ({ ...prev, [key]: value }))
+	// 处理JSON配置文件上传
+	const handleConfigFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0]
+		if (!file) return
+
+		setIsLoading(true)
+		try {
+			const content = await file.text()
+			const jsonData = JSON.parse(content) as IngestionConfig
+			
+			setConfigFile(file)
+			setConfigData(jsonData)
+			
+			// 根据当前协议的链自动选择对应的配置
+			if (currentProtocol?.chain) {
+				const chainName = currentProtocol.chain.toLowerCase()
+				if (jsonData.chainConfigs[chainName]) {
+					setSelectedChain(chainName)
+					// 自动选择第一个表
+					const tables = Object.keys(jsonData.chainConfigs[chainName].tables)
+					if (tables.length > 0) {
+						setSelectedTable(tables[0])
+						setSelectedColumns(jsonData.chainConfigs[chainName].tables[tables[0]].columns)
+					}
+				}
+			}
+			
+			setSaveMessage('✅ 配置文件加载成功')
+		} catch (error) {
+			console.error('Config file parse failed:', error)
+			setSaveMessage('❌ 配置文件格式错误，请检查JSON格式')
+		} finally {
+			setIsLoading(false)
+		}
 	}
 
-	// 更新Doris设置
-	const updateDorisSetting = (key: string, value: any) => {
-		setDorisSettings(prev => ({ ...prev, [key]: value }))
+	// 选择链配置
+	const handleChainSelect = (chainName: string) => {
+		setSelectedChain(chainName)
+		setSelectedTable('')
+		setSelectedColumns([])
+		
+		if (configData?.chainConfigs[chainName]) {
+			const tables = Object.keys(configData.chainConfigs[chainName].tables)
+			if (tables.length > 0) {
+				setSelectedTable(tables[0])
+				setSelectedColumns(configData.chainConfigs[chainName].tables[tables[0]].columns)
+			}
+		}
+	}
+
+	// 选择表
+	const handleTableSelect = (tableName: string) => {
+		setSelectedTable(tableName)
+		if (configData?.chainConfigs[selectedChain]?.tables[tableName]) {
+			setSelectedColumns(configData.chainConfigs[selectedChain].tables[tableName].columns)
+		}
+	}
+
+	// 切换JSON配置字段选择
+	const toggleColumnSelection = (columnName: string) => {
+		setSelectedColumns(prev => 
+			prev.includes(columnName) 
+				? prev.filter(col => col !== columnName)
+				: [...prev, columnName]
+		)
+	}
+
+	// 切换映射字段选择
+	const toggleMappingFieldSelection = (fieldName: string) => {
+		setMappingFieldsSelection(prev => ({
+			...prev,
+			[fieldName]: !prev[fieldName]
+		}))
 	}
 
 	// 测试Kafka连接
 	const testKafkaConnection = async () => {
+		if (!configData || !selectedChain) return
+
 		setIsLoading(true)
 		setTestResults(prev => ({ ...prev, kafka: null }))
 
 		try {
+			const chainConfig = configData.chainConfigs[selectedChain]
 			const response = await fieldParsingAPI.testKafkaConnection({
-				host: 'localhost', // 这里应该从配置中获取
-				port: 9092,
-				topic: 'blockchain-events',
-				settings: kafkaSettings
+				host: configData.kafka.servers.split(':')[0],
+				port: parseInt(configData.kafka.servers.split(':')[1]),
+				topic: chainConfig.kafka.topics,
+				settings: {
+					groupId: chainConfig.kafka.groupId,
+					servers: configData.kafka.servers
+				}
 			})
 
 			if (response.success) {
@@ -101,8 +203,7 @@ export default function Step5() {
 				...prev,
 				kafka: {
 					success: false,
-					message: 'Kafka连接测试异常',
-					details: { error: error.message }
+					message: 'Kafka连接测试失败，请检查网络连接'
 				}
 			}))
 		} finally {
@@ -112,17 +213,20 @@ export default function Step5() {
 
 	// 测试Doris连接
 	const testDorisConnection = async () => {
+		if (!configData || !selectedChain) return
+
 		setIsLoading(true)
 		setTestResults(prev => ({ ...prev, doris: null }))
 
 		try {
+			const chainConfig = configData.chainConfigs[selectedChain]
 			const response = await fieldParsingAPI.testDorisConnection({
-				host: dorisSettings.host,
-				port: dorisSettings.port,
-				username: dorisSettings.username,
-				password: dorisSettings.password,
-				database: dorisSettings.database,
-				table: dorisSettings.table
+				host: chainConfig.doris.host,
+				port: parseInt(chainConfig.doris.port),
+				username: chainConfig.doris.user,
+				password: chainConfig.doris.password,
+				database: chainConfig.doris.db,
+				table: selectedTable
 			})
 
 			if (response.success) {
@@ -150,8 +254,7 @@ export default function Step5() {
 				...prev,
 				doris: {
 					success: false,
-					message: 'Doris连接测试异常',
-					details: { error: error.message }
+					message: 'Doris连接测试失败，请检查网络连接'
 				}
 			}))
 		} finally {
@@ -165,24 +268,24 @@ export default function Step5() {
 		setTestResults(prev => ({ ...prev, overall: null }))
 
 		try {
-			// 并行测试Kafka和Doris连接
-			const [kafkaTest, dorisTest] = await Promise.allSettled([
+			await Promise.allSettled([
 				testKafkaConnection(),
 				testDorisConnection()
 			])
 
-			// 计算整体结果
-			const kafkaSuccess = testResults.kafka?.success ?? false
-			const dorisSuccess = testResults.doris?.success ?? false
-			const overallSuccess = kafkaSuccess && dorisSuccess
+			setTimeout(() => {
+				const kafkaSuccess = testResults.kafka?.success ?? false
+				const dorisSuccess = testResults.doris?.success ?? false
+				const overallSuccess = kafkaSuccess && dorisSuccess
 
-			setTestResults(prev => ({
-				...prev,
-				overall: {
-					success: overallSuccess,
-					message: overallSuccess ? '所有连接测试通过' : '存在连接问题，请检查配置'
-				}
-			}))
+				setTestResults(prev => ({
+					...prev,
+					overall: {
+						success: overallSuccess,
+						message: overallSuccess ? '所有连接测试通过' : '存在连接问题，请检查配置'
+					}
+				}))
+			}, 1000)
 		} catch (error) {
 			console.error('Full test failed:', error)
 			setTestResults(prev => ({
@@ -196,28 +299,59 @@ export default function Step5() {
 
 	// 保存配置到后端
 	const saveConfiguration = async () => {
-		if (!currentColumnId) return
+		if (!currentProtocolId || !configData || !selectedChain || !selectedTable) {
+			setSaveMessage('❌ 请完成所有配置选择')
+			return
+		}
 
 		setIsLoading(true)
 		setSaveMessage('')
 
 		try {
-			// 更新本地Kafka配置
-			updateKafka(currentColumnId, kafkaSettings)
-
-			// 调用后端API保存配置
-			const response = await fieldParsingAPI.saveIngestionConfig({
-				column_id: currentColumnId,
-				chain_name: currentColumn?.chain?.toLowerCase() || 'ethereum',
-				protocol_type: currentColumn?.type?.toLowerCase() || 'dex',
-				kafka_config: kafkaSettings,
-				doris_config: dorisSettings,
+			const chainConfig = configData.chainConfigs[selectedChain]
+			
+			// 获取选中的映射字段
+			const selectedMappingFields = Object.keys(mappingFieldsSelection)
+				.filter(key => mappingFieldsSelection[key])
+			
+			// 构建保存的配置数据
+			const configToSave = {
+				protocol_id: currentProtocolId,
+				chain_name: selectedChain,
+				protocol_type: currentProtocol?.type?.toLowerCase() || 'dex',
+				kafka_config: {
+					servers: configData.kafka.servers,
+					topics: chainConfig.kafka.topics,
+					groupId: chainConfig.kafka.groupId
+				},
+				doris_config: {
+					host: chainConfig.doris.host,
+					port: chainConfig.doris.port,
+					user: chainConfig.doris.user,
+					password: chainConfig.doris.password,
+					database: chainConfig.doris.db,
+					table: selectedTable,
+					columns: selectedColumns,
+					mapper: chainConfig.mapper[selectedTable] || 'defaultMapper'
+				},
+				mapping_fields: selectedMappingFields,
+				field_mappings: mappingRules.filter(rule => 
+					selectedMappingFields.includes(rule.targetKey)
+				),
 				created_at: new Date().toISOString(),
 				updated_at: new Date().toISOString()
-			})
+			}
+
+			// 调用后端API保存配置
+			const response = await fieldParsingAPI.saveIngestionConfig(configToSave)
 
 			if (response.success) {
 				setSaveMessage('✅ 配置已成功保存到后端')
+				
+				// 更新本地状态
+				if (currentColumnId) {
+					updateKafka(currentColumnId, configToSave.kafka_config)
+				}
 			} else {
 				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
 			}
@@ -231,414 +365,290 @@ export default function Step5() {
 
 	// 重置配置
 	const resetConfiguration = () => {
-		if (confirm('确定要重置所有配置吗？')) {
-			setKafkaSettings(kafkaConfig)
-			setDorisSettings({
-				host: 'localhost',
-				port: 9030,
-				username: 'root',
-				password: '',
-				database: 'blockchain_data',
-				table: 'processed_events',
-				batchSize: 1000,
-				flushInterval: 5000,
-				maxRetries: 3,
-				timeout: 30000
-			})
-			setTestResults({
-				kafka: null,
-				doris: null,
-				overall: null
-			})
-			setSaveMessage('')
+		setConfigFile(null)
+		setConfigData(null)
+		setSelectedChain('')
+		setSelectedTable('')
+		setSelectedColumns([])
+		setTestResults({ kafka: null, doris: null, overall: null })
+		setSaveMessage('')
+		if (fileInputRef.current) {
+			fileInputRef.current.value = ''
 		}
-	}
-
-	// 生成配置报告
-	const generateConfigReport = () => {
-		const report = {
-			column: currentColumn?.name || 'Unknown',
-			chain: currentColumn?.chain || 'Unknown',
-			timestamp: new Date().toISOString(),
-			kafka_config: kafkaSettings,
-			doris_config: dorisSettings,
-			test_results: testResults,
-			recommendations: []
-		}
-
-		// 添加建议
-		if (kafkaSettings.batchSize > 5000) {
-			report.recommendations.push('Kafka批处理大小较大，可能影响延迟')
-		}
-		if (kafkaSettings.lingerMs > 500) {
-			report.recommendations.push('Kafka延迟时间较长，可能影响实时性')
-		}
-		if (dorisSettings.batchSize > 2000) {
-			report.recommendations.push('Doris批处理大小较大，可能影响写入性能')
-		}
-
-		// 下载报告
-		const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = `ingestion-config-${currentColumn?.name}-${new Date().toISOString().split('T')[0]}.json`
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		URL.revokeObjectURL(url)
-		
-		setSaveMessage('✅ 配置报告已生成')
 	}
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
-				<h2 className="text-lg font-semibold">Step 5: Ingestion Configuration</h2>
-				{currentColumn && (
-					<div className="text-sm text-gray-600">
-						Column: {currentColumn.name} ({currentColumn.chain} • {currentColumn.type})
+			{/* Header */}
+			<div>
+				<h1 className="text-2xl font-bold text-gray-900">Step 5: 数据摄入配置</h1>
+				<p className="text-gray-600 mt-2">
+					上传JSON配置文件，选择要入库的表和字段，并确认从Step2映射的字段
+				</p>
+				{currentProtocol && (
+					<div className="mt-2 p-2 bg-blue-50 rounded-md">
+						<p className="text-sm text-blue-700">
+							当前协议: <strong>{currentProtocol.name}</strong> ({currentProtocol.chain} • {currentProtocol.type})
+						</p>
 					</div>
 				)}
 			</div>
 
-			{/* Kafka配置 */}
-			<Box title="Kafka Configuration" right={
-				<button
-					className="btn btn-secondary"
-					onClick={testKafkaConnection}
-					disabled={isLoading}
-				>
-					{isLoading ? '测试中...' : 'Test Connection'}
-				</button>
-			}>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+			{/* Step2 字段映射结果 */}
+			{mappingRules.length > 0 && (
+				<Box title="Step2 字段映射结果" className="space-y-4">
+					<div>
+						<p className="text-sm text-gray-600 mb-3">
+							以下是从Step2获取的字段映射规则，请选择要入库的字段：
+						</p>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
+							{mappingRules.map(rule => (
+								<label key={rule.id} className="flex items-start space-x-3 text-sm">
+									<input
+										type="checkbox"
+										checked={mappingFieldsSelection[rule.targetKey] || false}
+										onChange={() => toggleMappingFieldSelection(rule.targetKey)}
+										className="mt-1 rounded border-gray-300 text-brand focus:ring-brand"
+									/>
+									<div className="flex-1">
+										<div className="font-medium">{rule.targetKey}</div>
+										<div className="text-xs text-gray-500">
+											源字段: {rule.sourceKey} → 转换器: {rule.transformer}
+										</div>
+										{rule.description && (
+											<div className="text-xs text-gray-400">{rule.description}</div>
+										)}
+									</div>
+								</label>
+							))}
+						</div>
+						<p className="text-sm text-gray-500 mt-2">
+							已选择 {Object.values(mappingFieldsSelection).filter(Boolean).length} 个映射字段
+						</p>
+					</div>
+				</Box>
+			)}
+
+			{/* Configuration File Upload */}
+			<Box title="JSON配置文件上传" className="space-y-4">
+				<div className="space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Batch Size
+							上传JSON配置文件
 						</label>
-						<input
-							type="number"
-							className="input"
-							value={kafkaSettings.batchSize}
-							onChange={(e) => updateKafkaSetting('batchSize', parseInt(e.target.value))}
-							min="100"
-							max="10000"
-						/>
-						<div className="text-xs text-gray-500 mt-1">100-10000</div>
+						<div className="flex items-center gap-4">
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept=".json"
+								onChange={handleConfigFileUpload}
+								className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-brand/90"
+							/>
+							<button
+								onClick={resetConfiguration}
+								className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+							>
+								重置
+							</button>
+						</div>
+						{configFile && (
+							<p className="text-sm text-green-600 mt-2">
+								已加载: {configFile.name}
+							</p>
+						)}
 					</div>
 
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Linger (ms)
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={kafkaSettings.lingerMs}
-							onChange={(e) => updateKafkaSetting('lingerMs', parseInt(e.target.value))}
-							min="0"
-							max="1000"
-						/>
-						<div className="text-xs text-gray-500 mt-1">0-1000ms</div>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Buffer Memory (bytes)
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={kafkaSettings.bufferMemory}
-							onChange={(e) => updateKafkaSetting('bufferMemory', parseInt(e.target.value))}
-							min="1024"
-							max="134217728"
-						/>
-						<div className="text-xs text-gray-500 mt-1">1KB-128MB</div>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Request Timeout (ms)
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={kafkaSettings.requestTimeoutMs}
-							onChange={(e) => updateKafkaSetting('requestTimeoutMs', parseInt(e.target.value))}
-							min="1000"
-							max="60000"
-						/>
-						<div className="text-xs text-gray-500 mt-1">1-60秒</div>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Acknowledgment
-						</label>
-						<select
-							className="input"
-							value={kafkaSettings.acks}
-							onChange={(e) => updateKafkaSetting('acks', e.target.value)}
-						>
-							<option value="0">0 (No acknowledgment)</option>
-							<option value="1">1 (Leader acknowledgment)</option>
-							<option value="all">all (All replicas acknowledgment)</option>
-						</select>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Compression Type
-						</label>
-						<select
-							className="input"
-							value={kafkaSettings.compressionType}
-							onChange={(e) => updateKafkaSetting('compressionType', e.target.value)}
-						>
-							<option value="none">None</option>
-							<option value="gzip">Gzip</option>
-							<option value="snappy">Snappy</option>
-							<option value="lz4">LZ4</option>
-						</select>
-					</div>
-				</div>
-
-				<div className="mt-4 space-y-3">
-					<label className="flex items-center space-x-2">
-						<input
-							type="checkbox"
-							checked={kafkaSettings.enableCompression}
-							onChange={(e) => updateKafkaSetting('enableCompression', e.target.checked)}
-							className="h-4 w-4 text-brand focus:ring-brand border-gray-300 rounded"
-						/>
-						<span className="text-sm text-gray-700">Enable Compression</span>
-					</label>
-
-					<label className="flex items-center space-x-2">
-						<input
-							type="checkbox"
-							checked={kafkaSettings.retryBackoff}
-							onChange={(e) => updateKafkaSetting('retryBackoff', e.target.checked)}
-							className="h-4 w-4 text-brand focus:ring-brand border-gray-300 rounded"
-						/>
-						<span className="text-sm text-gray-700">Enable Retry Backoff</span>
-					</label>
+					{saveMessage && (
+						<div className={`p-3 rounded-md text-sm ${
+							saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+						}`}>
+							{saveMessage}
+						</div>
+					)}
 				</div>
 			</Box>
 
-			{/* Doris配置 */}
-			<Box title="Doris Configuration" right={
-				<button
-					className="btn btn-secondary"
-					onClick={testDorisConnection}
-					disabled={isLoading}
-				>
-					{isLoading ? '测试中...' : 'Test Connection'}
-				</button>
-			}>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Host
-						</label>
-						<input
-							type="text"
-							className="input"
-							value={dorisSettings.host}
-							onChange={(e) => updateDorisSetting('host', e.target.value)}
-							placeholder="localhost"
-						/>
+			{/* Chain and Table Selection */}
+			{configData && (
+				<Box title="链和表选择" className="space-y-4">
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{/* Chain Selection */}
+						<div>
+							<label className="block text-sm font-medium text-gray-700 mb-2">
+								选择区块链
+							</label>
+							<select
+								value={selectedChain}
+								onChange={(e) => handleChainSelect(e.target.value)}
+								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
+							>
+								<option value="">请选择链...</option>
+								{configData.chains.map(chain => (
+									<option key={chain} value={chain}>
+										{chain.toUpperCase()} (ID: {configData.chainConfigs[chain]?.id})
+									</option>
+								))}
+							</select>
+						</div>
+
+						{/* Table Selection */}
+						{selectedChain && (
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-2">
+									选择数据表
+								</label>
+								<select
+									value={selectedTable}
+									onChange={(e) => handleTableSelect(e.target.value)}
+									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
+								>
+									<option value="">请选择表...</option>
+									{Object.keys(configData.chainConfigs[selectedChain].tables).map(tableName => (
+										<option key={tableName} value={tableName}>
+											{tableName}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 					</div>
 
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Port
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={dorisSettings.port}
-							onChange={(e) => updateDorisSetting('port', parseInt(e.target.value))}
-							min="1"
-							max="65535"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Username
-						</label>
-						<input
-							type="text"
-							className="input"
-							value={dorisSettings.username}
-							onChange={(e) => updateDorisSetting('username', e.target.value)}
-							placeholder="root"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Password
-						</label>
-						<input
-							type="password"
-							className="input"
-							value={dorisSettings.password}
-							onChange={(e) => updateDorisSetting('password', e.target.value)}
-							placeholder="Enter password"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Database
-						</label>
-						<input
-							type="text"
-							className="input"
-							value={dorisSettings.database}
-							onChange={(e) => updateDorisSetting('database', e.target.value)}
-							placeholder="blockchain_data"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Table
-						</label>
-						<input
-							type="text"
-							className="input"
-							value={dorisSettings.table}
-							onChange={(e) => updateDorisSetting('table', e.target.value)}
-							placeholder="processed_events"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Batch Size
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={dorisSettings.batchSize}
-							onChange={(e) => updateDorisSetting('batchSize', parseInt(e.target.value))}
-							min="100"
-							max="10000"
-						/>
-					</div>
-
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Flush Interval (ms)
-						</label>
-						<input
-							type="number"
-							className="input"
-							value={dorisSettings.flushInterval}
-							onChange={(e) => updateDorisSetting('flushInterval', parseInt(e.target.value))}
-							min="1000"
-							max="30000"
-						/>
-					</div>
-				</div>
-			</Box>
-
-			{/* 测试结果 */}
-			{/* Kafka测试结果 */}
-			{testResults.kafka && (
-				<Box title="Kafka Test Results">
-					<div className={`flex items-center space-x-2 text-lg ${testResults.kafka.success ? 'text-green-600' : 'text-red-600'}`}>
-						<span>{testResults.kafka.success ? '✅' : '❌'}</span>
-						<span className="font-medium">{testResults.kafka.message}</span>
-					</div>
-					{testResults.kafka.details && (
-						<pre className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-							{JSON.stringify(testResults.kafka.details, null, 2)}
-						</pre>
+					{/* Configuration Preview */}
+					{selectedChain && (
+						<div className="mt-4 p-4 bg-gray-50 rounded-md">
+							<h4 className="text-sm font-medium text-gray-700 mb-2">配置预览</h4>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+								<div>
+									<p><strong>Kafka服务器:</strong> {configData.kafka.servers}</p>
+									<p><strong>Topic:</strong> {configData.chainConfigs[selectedChain].kafka.topics}</p>
+									<p><strong>Group ID:</strong> {configData.chainConfigs[selectedChain].kafka.groupId}</p>
+								</div>
+								<div>
+									<p><strong>Doris主机:</strong> {configData.chainConfigs[selectedChain].doris.host}:{configData.chainConfigs[selectedChain].doris.port}</p>
+									<p><strong>数据库:</strong> {configData.chainConfigs[selectedChain].doris.db}</p>
+									<p><strong>用户:</strong> {configData.chainConfigs[selectedChain].doris.user}</p>
+								</div>
+							</div>
+						</div>
 					)}
 				</Box>
 			)}
 
-			{/* Doris测试结果 */}
-			{testResults.doris && (
-				<Box title="Doris Test Results">
-					<div className={`flex items-center space-x-2 text-lg ${testResults.doris.success ? 'text-green-600' : 'text-red-600'}`}>
-						<span>{testResults.doris.success ? '✅' : '❌'}</span>
-						<span className="font-medium">{testResults.doris.message}</span>
+			{/* JSON Table Column Selection */}
+			{selectedTable && configData && (
+				<Box title="JSON配置表字段选择" className="space-y-4">
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							选择要入库的表字段 (表: {selectedTable})
+						</label>
+						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
+							{configData.chainConfigs[selectedChain].tables[selectedTable].columns.map(column => (
+								<label key={column} className="flex items-center space-x-2 text-sm">
+									<input
+										type="checkbox"
+										checked={selectedColumns.includes(column)}
+										onChange={() => toggleColumnSelection(column)}
+										className="rounded border-gray-300 text-brand focus:ring-brand"
+									/>
+									<span className="truncate" title={column}>{column}</span>
+								</label>
+							))}
+						</div>
+						<p className="text-sm text-gray-500 mt-2">
+							已选择 {selectedColumns.length} 个表字段
+						</p>
 					</div>
-					{testResults.doris.details && (
-						<pre className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">
-							{JSON.stringify(testResults.doris.details, null, 2)}
-						</pre>
-					)}
 				</Box>
 			)}
 
-			{/* 整体测试结果 */}
-			{testResults.overall && (
-				<Box title="Overall Test Results">
-					<div className={`flex items-center space-x-2 text-xl ${testResults.overall.success ? 'text-green-600' : 'text-red-600'}`}>
-						<span>{testResults.overall.success ? '✅' : '❌'}</span>
-						<span className="font-bold">{testResults.overall.message}</span>
+			{/* Connection Testing */}
+			{selectedChain && selectedTable && (
+				<Box title="连接测试" className="space-y-4">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<button
+							onClick={testKafkaConnection}
+							disabled={isLoading}
+							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+						>
+							{isLoading ? '测试中...' : '测试Kafka连接'}
+						</button>
+						<button
+							onClick={testDorisConnection}
+							disabled={isLoading}
+							className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+						>
+							{isLoading ? '测试中...' : '测试Doris连接'}
+						</button>
+						<button
+							onClick={runFullTest}
+							disabled={isLoading}
+							className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+						>
+							{isLoading ? '测试中...' : '完整测试'}
+						</button>
+					</div>
+
+					{/* Test Results */}
+					<div className="space-y-2">
+						{testResults.kafka && (
+							<div className={`p-3 rounded-md text-sm ${
+								testResults.kafka.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+							}`}>
+								<strong>Kafka:</strong> {testResults.kafka.message}
+							</div>
+						)}
+						{testResults.doris && (
+							<div className={`p-3 rounded-md text-sm ${
+								testResults.doris.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+							}`}>
+								<strong>Doris:</strong> {testResults.doris.message}
+							</div>
+						)}
+						{testResults.overall && (
+							<div className={`p-3 rounded-md text-sm font-medium ${
+								testResults.overall.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+							}`}>
+								<strong>整体结果:</strong> {testResults.overall.message}
+							</div>
+						)}
 					</div>
 				</Box>
 			)}
 
-			{/* 保存消息 */}
-			{saveMessage && (
-				<div className={`p-4 rounded-lg ${
-					saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-				}`}>
-					{saveMessage}
-				</div>
+			{/* Save Configuration */}
+			{selectedChain && selectedTable && selectedColumns.length > 0 && (
+				<Box title="保存配置" className="space-y-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-sm text-gray-600">
+								配置完成，准备保存到后端
+							</p>
+							<p className="text-xs text-gray-500 mt-1">
+								链: {selectedChain} | 表: {selectedTable} | 表字段: {selectedColumns.length}个 | 映射字段: {Object.values(mappingFieldsSelection).filter(Boolean).length}个
+							</p>
+						</div>
+						<button
+							onClick={saveConfiguration}
+							disabled={isLoading}
+							className="px-6 py-2 bg-brand text-white rounded-md hover:bg-brand/90 disabled:opacity-50"
+						>
+							{isLoading ? '保存中...' : '保存配置'}
+						</button>
+					</div>
+				</Box>
 			)}
 
-			{/* 操作按钮 */}
-			<Box title="Configuration Actions">
-				<div className="flex gap-3 flex-wrap">
-					<button
-						className="btn btn-secondary"
-						onClick={runFullTest}
-						disabled={isLoading}
-					>
-						{isLoading ? '测试中...' : 'Run Full Test'}
-					</button>
-					<button
-						className="btn"
-						onClick={saveConfiguration}
-						disabled={isLoading}
-					>
-						{isLoading ? '保存中...' : 'Save Configuration'}
-					</button>
-					<button
-						className="btn btn-secondary"
-						onClick={resetConfiguration}
-						disabled={isLoading}
-					>
-						Reset
-					</button>
-					<button
-						className="btn btn-secondary"
-						onClick={generateConfigReport}
-					>
-						Generate Report
-					</button>
-				</div>
-			</Box>
-
-			{/* 导航按钮 */}
-			<div className="flex gap-3">
-				<Link to="/step-4" className="btn btn-secondary">
-					Back to Step 4
+			{/* Navigation */}
+			<div className="flex justify-between pt-6 border-t border-gray-200">
+				<Link
+					to="/step-4"
+					className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+				>
+					← 上一步: SQL编辑器
 				</Link>
-				<button className="btn">
-					Complete Setup
-				</button>
+				<div className="text-sm text-gray-500">
+					最后一步 - 配置完成
+				</div>
 			</div>
 		</div>
 	)
