@@ -590,7 +590,13 @@ export const pipelineAPI = {
 			
 			const result = await response.json()
 			console.log(`Pipeline ${pipelineId} config loaded:`, result)
-			return result
+			
+			// 后端直接返回管道配置数据，需要包装成标准格式
+			return {
+				success: true,
+				message: 'Pipeline configuration loaded successfully',
+				data: result
+			}
 		} catch (error) {
 			console.error('Pipeline config request failed:', error)
 			// 网络错误等情况，返回空配置而不是抛出异常

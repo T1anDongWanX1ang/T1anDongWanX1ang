@@ -340,7 +340,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 			console.log('🔄 开始加载管道配置，ID:', pipelineId)
 			const response = await api.pipeline.getConfig(pipelineId)
 			
-			if (response.success && response.data.components && response.data.components.length > 0) {
+			// 首先检查响应是否成功，以及data是否存在
+			if (response.success && response.data && response.data.components && response.data.components.length > 0) {
 				// 成功获取到配置且有组件数据
 				console.log('✅ 管道配置加载成功:', {
 					pipeline_id: response.data.pipeline_id,
@@ -383,8 +384,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 				
 				console.log('🎯 管道配置加载完成，组件数据已填充到全局状态')
 			} else {
-				// 404 或 components 为空的情况
+				// API返回失败、data不存在或components为空的情况
 				console.log('📝 管道配置不存在或为空，清空组件数据')
+				console.log('响应详情:', { 
+					success: response.success, 
+					message: response.message, 
+					data: response.data,
+					hasData: !!response.data,
+					hasComponents: !!(response.data && response.data.components),
+					componentsLength: response.data && response.data.components ? response.data.components.length : 0
+				})
 				setComponentsData([])
 				// 清空事件参数
 				setEventParamsState(prev => ({
