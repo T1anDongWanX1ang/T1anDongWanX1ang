@@ -48,7 +48,10 @@ export const API_ENDPOINTS = {
 	
 	// 管道相关
 	pipeline: {
-		tree: '/api/v1/pipeline/tree'
+		tree: '/api/v1/pipeline/tree',
+		create: '/api/v1/pipeline/create',
+		getConfig: '/api/v1/pipeline/config',
+		saveConfig: '/api/v1/pipeline/config'
 	}
 }
 

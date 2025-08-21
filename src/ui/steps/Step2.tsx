@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAppState, DictMapper } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI, FieldParsingRequest, TemplateUploadRequest } from '../../services/api'
+import { currentApiConfig } from '../../config/api'
 
 import { debugAPI } from '../../utils/debug'
 
@@ -146,7 +147,7 @@ export default function Step2() {
 			
 			if (error instanceof Error) {
 				if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-					errorMessage += '，无法连接到后端服务，请检查：\n1. 后端服务是否启动 (http://localhost:8001)\n2. 网络连接是否正常\n3. 防火墙设置'
+					errorMessage += `，无法连接到后端服务，请检查：\n1. 后端服务是否启动 (${currentApiConfig.baseUrl})\n2. 网络连接是否正常\n3. 防火墙设置`
 				} else if (error.message.includes('timeout')) {
 					errorMessage += '，请求超时，请稍后重试'
 				} else if (error.message.includes('400')) {

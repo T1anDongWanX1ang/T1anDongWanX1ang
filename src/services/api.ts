@@ -450,8 +450,8 @@ export const fileAPI = {
 		const formData = new FormData()
 		formData.append('file', file)
 		
-		// 使用指定的API地址
-		const url = 'http://localhost:8001/api/v1/file/upload'
+		// 使用统一的API配置
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.file.upload}`
 		
 		try {
 			const controller = new AbortController()
@@ -487,7 +487,7 @@ export const fileAPI = {
 export const pipelineAPI = {
 	// 获取管道树形结构
 	getTree: async (): Promise<PipelineTreeResponse> => {
-		const url = 'http://localhost:8001/api/v1/pipeline/tree'
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.tree}`
 		
 		try {
 			const controller = new AbortController()
@@ -518,7 +518,7 @@ export const pipelineAPI = {
 	
 	// 创建管道
 	create: async (request: PipelineCreateRequest): Promise<PipelineCreateResponse> => {
-		const url = 'http://localhost:8001/api/v1/pipeline/create'
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.create}`
 		
 		try {
 			const controller = new AbortController()
@@ -550,7 +550,7 @@ export const pipelineAPI = {
 	
 	// 获取管道配置
 	getConfig: async (pipelineId: number): Promise<PipelineConfigResponse> => {
-		const url = `http://localhost:8001/api/v1/pipeline/config/${pipelineId}`
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.getConfig}/${pipelineId}`
 		
 		try {
 			const controller = new AbortController()
@@ -617,7 +617,7 @@ export const pipelineAPI = {
 	
 	// 保存管道配置
 	saveConfig: async (request: PipelineSaveConfigRequest): Promise<PipelineSaveConfigResponse> => {
-		const url = 'http://localhost:8001/api/v1/pipeline/config'
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.saveConfig}`
 		
 		try {
 			const controller = new AbortController()
