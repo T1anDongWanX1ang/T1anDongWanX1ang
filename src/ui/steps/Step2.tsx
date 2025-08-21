@@ -1,5 +1,5 @@
 import Box from '../components/Box'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAppState, DictMapper } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI, FieldParsingRequest, TemplateUploadRequest } from '../../services/api'
@@ -9,13 +9,12 @@ import { debugAPI } from '../../utils/debug'
 
 export default function Step2() {
 	const { eventParams, updateComponent, components } = useAppState()
+	const navigate = useNavigate()
 	const [dragId, setDragId] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 	const [uploadMessage, setUploadMessage] = useState('')
 	const [parsingMessage, setParsingMessage] = useState('')
 	const [saveMessage, setSaveMessage] = useState('')
-
-	const [isSaving, setIsSaving] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	
 	// 本地状态管理映射规则
@@ -316,58 +315,7 @@ export default function Step2() {
 		return true
 	}
 
-	// 保存映射规则到后端
-	const handleSaveToBackend = async () => {
-		if (!validateMappingRules()) return
 
-		// 从全局 components 获取 step1 数据
-		const step1Component = components.find(c => c.name === "step1")
-		if (!step1Component) {
-			setSaveMessage('❌ 请先完成第一步配置')
-			return
-		}
-
-		setIsSaving(true)
-		setSaveMessage('')
-
-		try {
-			// 准备保存的数据
-			const saveData = {
-				protocol_id: 'step2_protocol',
-				chain_name: step1Component.chain_name || 'ethereum',
-				protocol_type: 'dex',
-				contract_address: step1Component.contract_address,
-				abi_path: step1Component.abi_path,
-				events_to_monitor: step1Component.events_to_monitor,
-				mapping_rules: mappingRules.map(rule => ({
-					source_key: rule.sourceKey,
-					target_key: rule.targetKey,
-					transformer: rule.transformer
-				})),
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}
-
-			// 调用后端API保存映射规则
-			const response = await fieldParsingAPI.saveMappingRules(saveData)
-			
-			if (response.success) {
-				setSaveMessage('✅ 字段映射规则已成功保存到后端')
-				
-				// 延迟跳转到下一步
-				setTimeout(() => {
-					// 这里可以添加跳转逻辑
-				}, 2000)
-			} else {
-				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
-			}
-		} catch (error) {
-			console.error('Save to backend failed:', error)
-			setSaveMessage('❌ 保存失败，请检查网络连接和后端服务状态')
-		} finally {
-			setIsSaving(false)
-		}
-	}
 
 	// 保存草稿（本地保存）
 	const handleSaveDraft = () => {
@@ -398,6 +346,40 @@ export default function Step2() {
 		} catch (error) {
 			console.error('保存映射规则失败:', error)
 			setSaveMessage('❌ 保存失败，请重试')
+		}
+	}
+
+	// 继续到Step3（先保存再跳转）
+	const handleContinueToStep3 = () => {
+		if (!validateMappingRules()) return
+		
+		try {
+			// 将 mappingRules 转换为 DictMapper 格式
+			const dictMapperComponent: DictMapper = {
+				name: "step2",
+				type: "dict_mapper",
+				mapping_rules: mappingRules.map(rule => ({
+					source_key: rule.sourceKey,
+					target_key: rule.targetKey,
+					transformer: rule.transformer === '-' ? undefined : rule.transformer
+				}))
+			}
+			
+			// 保存到全局 components
+			updateComponent("step2", dictMapperComponent)
+			
+			// 调试信息
+			console.log('保存的 DictMapper 组件:', dictMapperComponent)
+			
+			setSaveMessage('✅ 字段映射规则已保存，正在跳转到Step3...')
+			
+			// 延迟跳转，让用户看到保存成功的消息
+			setTimeout(() => {
+				navigate('/step-3')
+			}, 1000)
+		} catch (error) {
+			console.error('保存映射规则失败:', error)
+			setSaveMessage('❌ 保存失败，无法跳转到Step3')
 		}
 	}
 
@@ -624,22 +606,19 @@ export default function Step2() {
 				
 				<div className="mt-4 flex gap-3">
 					<button 
-						className="btn btn-secondary" 
+						className="btn" 
 						onClick={handleSaveDraft}
 						disabled={mappingRules.length === 0}
 					>
-						Save Draft
+						Save Mapping
 					</button>
 					<button 
-						className="btn" 
-						onClick={handleSaveToBackend}
-						disabled={isSaving || mappingRules.length === 0}
+						className="btn btn-secondary"
+						onClick={handleContinueToStep3}
+						disabled={mappingRules.length === 0}
 					>
-						{isSaving ? '保存中...' : 'Save to Backend'}
-					</button>
-					<Link to="/step-3" className="btn btn-secondary">
 						Continue to Step 3
-					</Link>
+					</button>
 				</div>
 			</Box>
 

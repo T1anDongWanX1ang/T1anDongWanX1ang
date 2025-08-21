@@ -1,5 +1,11 @@
 import { currentConfig } from './environment'
 
+// 调试：检查配置是否正确加载
+console.log('🔍 API配置调试:', {
+	'currentConfig': currentConfig,
+	'apiBaseUrl': currentConfig?.apiBaseUrl
+})
+
 // API端点配置
 export const API_ENDPOINTS = {
 	// 字段解析相关
@@ -51,7 +57,11 @@ export const API_ENDPOINTS = {
 		tree: '/api/v1/pipeline/tree',
 		create: '/api/v1/pipeline/create',
 		getConfig: '/api/v1/pipeline/config',
-		saveConfig: '/api/v1/pipeline/config'
+		saveConfig: '/api/v1/pipeline/config',
+		start: '/api/v1/pipeline/start',
+		getTask: '/api/v1/pipeline/task',
+		getLatestTask: '/api/v1/pipeline/pipeline/{pipelineId}/latest-task',
+		getTaskLog: '/api/v1/pipeline/task'
 	}
 }
 

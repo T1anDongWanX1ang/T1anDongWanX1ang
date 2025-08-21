@@ -179,6 +179,59 @@ export interface PipelineSaveConfigResponse {
 	components_created: number
 }
 
+// Pipeline Start 相关类型
+export interface PipelineStartRequest {
+	pipeline_id: number
+}
+
+export interface PipelineStartResponse {
+	success: boolean
+	message: string
+	pipeline_id: number
+	status: string
+	start_time?: string
+}
+
+// Pipeline Task 相关类型
+export interface PipelineTaskResponse {
+	success: boolean
+	message: string
+	task_id: number
+	pipeline_id: number
+	status: number
+	status_text: string
+	create_time: string
+	log_path: string
+}
+
+// Pipeline Latest Task 相关类型
+export interface PipelineLatestTaskResponse {
+	success: boolean
+	message: string
+	pipeline_id: number
+	task: {
+		task_id: number
+		pipeline_id: number
+		pipeline_name: string
+		pipeline_description: string
+		status: number
+		status_text: string
+		create_time: string
+		log_path: string
+	} | null
+}
+
+// Pipeline Task Log 相关类型
+export interface PipelineTaskLogResponse {
+	success: boolean
+	message: string
+	task_id: number
+	log_path: string
+	log_content: string
+	total_lines: number
+	returned_lines: number
+}
+
 // API函数
 export const fieldParsingAPI = {
 	// 解析字段映射
@@ -670,6 +723,134 @@ export const pipelineAPI = {
 			return result
 		} catch (error) {
 			console.error('Pipeline config save failed:', error)
+			throw error
+		}
+	},
+	
+	// 启动管道
+	start: async (request: PipelineStartRequest): Promise<PipelineStartResponse> => {
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.start}`
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: DEFAULT_HEADERS,
+				body: JSON.stringify(request),
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline ${request.pipeline_id} started successfully:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline start failed:', error)
+			throw error
+		}
+	},
+	
+	// 获取管道任务状态
+	getTask: async (taskId: number): Promise<PipelineTaskResponse> => {
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.getTask}/${taskId}`
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: DEFAULT_HEADERS,
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline task ${taskId} status loaded:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline task query failed:', error)
+			throw error
+		}
+	},
+	
+	// 获取管道最新任务状态
+	getLatestTask: async (pipelineId: number): Promise<PipelineLatestTaskResponse> => {
+		console.log('🔍 调试信息:', {
+			'currentApiConfig': currentApiConfig,
+			'baseUrl': currentApiConfig.baseUrl,
+			'pipelineId': pipelineId
+		})
+		const url = `${currentApiConfig.baseUrl}/api/v1/pipeline/pipeline/${pipelineId}/latest-task`
+		console.log('🔗 构建的API URL:', url)
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: DEFAULT_HEADERS,
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline ${pipelineId} latest task loaded:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline latest task query failed:', error)
+			throw error
+		}
+	},
+	
+	// 获取管道任务日志
+	getTaskLog: async (taskId: number): Promise<PipelineTaskLogResponse> => {
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.getTaskLog}/${taskId}/log`
+		console.log('🔗 构建的日志API URL:', url)
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: DEFAULT_HEADERS,
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline task ${taskId} log loaded:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline task log query failed:', error)
 			throw error
 		}
 	}

@@ -4,7 +4,7 @@
 export const ENV_CONFIG = {
 	// 开发环境 - 本地开发
 	development: {
-		apiBaseUrl: 'http://localhost:8001',
+		apiBaseUrl: 'http://192.168.50.94:8001',
 		apiTimeout: 30000,
 		apiRetryAttempts: 3,
 		enableDebug: true,
@@ -33,7 +33,13 @@ export const ENV_CONFIG = {
 // 获取当前环境
 export const getCurrentEnvironment = (): keyof typeof ENV_CONFIG => {
 	// 可以通过环境变量或构建时配置来设置
-	const env = import.meta.env.MODE || 'development'
+	const mode = (import.meta as any).env?.MODE || 'development'
+	const env = mode
+	console.log('🔍 环境调试:', {
+		'import.meta.env.MODE': mode,
+		'env': env,
+		'ENV_CONFIG keys': Object.keys(ENV_CONFIG)
+	})
 	return env as keyof typeof ENV_CONFIG
 }
 
