@@ -27,13 +27,14 @@ export default function Step2() {
 
 	// 从全局 components 中恢复数据，或根据第一步字段自动生成映射规则
 	useEffect(() => {
+		// 如果已经有映射规则，不重复生成
 		if (mappingRules.length > 0) return
 		
 		const step2Component = components.find(c => c.name === "step2") as DictMapper
 		
-		if (step2Component && step2Component.mapping_rules) {
+		if (step2Component && step2Component.mapping_rules && step2Component.mapping_rules.length > 0) {
 			// 从保存的数据中恢复映射规则
-			console.log('开始恢复 Step2 数据:', step2Component)
+			console.log('🔄 从全局 components 恢复 Step2 数据:', step2Component)
 			
 			const restoredRules = step2Component.mapping_rules.map((rule, index) => ({
 				id: `restored_${Date.now()}_${index}`,
@@ -43,11 +44,11 @@ export default function Step2() {
 			}))
 			
 			setMappingRules(restoredRules)
-			setSaveMessage(`🔄 已从之前保存的数据中恢复 ${step2Component.mapping_rules.length} 条映射规则`)
-			setTimeout(() => setSaveMessage(''), 5000)
+			setSaveMessage(`✅ 已从管道配置中恢复 ${step2Component.mapping_rules.length} 条映射规则`)
+			setTimeout(() => setSaveMessage(''), 6000)
 		} else if (eventParams.step1 && eventParams.step1.length > 0) {
 			// 如果没有保存的数据，根据第一步的字段自动生成映射规则
-			console.log('根据第一步字段自动生成映射规则:', eventParams.step1)
+			console.log('🔄 根据第一步字段自动生成映射规则:', eventParams.step1)
 			
 			const autoRules = eventParams.step1.map((param, index) => {
 				// 为每个参数生成一个映射规则
@@ -64,8 +65,11 @@ export default function Step2() {
 			})
 			
 			setMappingRules(autoRules)
-			setSaveMessage(`🔄 已根据第一步字段自动生成 ${eventParams.step1.length} 条映射规则`)
-			setTimeout(() => setSaveMessage(''), 5000)
+			setSaveMessage(`✅ 已根据第一步字段自动生成 ${eventParams.step1.length} 条映射规则`)
+			setTimeout(() => setSaveMessage(''), 6000)
+		} else {
+			// 没有任何数据可以恢复或生成
+			console.log('📝 Step2: 没有可恢复的数据，等待用户配置')
 		}
 	}, [components, mappingRules.length, eventParams.step1]) // 依赖 eventParams.step1
 

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { api } from '../../services/api'
 
 export default function Step1() {
-	const { components, updateComponent, setEventParams, eventParams } = useAppState()
+	const { components, updateComponent, setEventParams, eventParams, currentPipelineId } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [validationMessage, setValidationMessage] = useState('')
 	const [contractAddress, setContractAddress] = useState('')
@@ -21,31 +21,64 @@ export default function Step1() {
 	
 	// 从全局 components 中恢复数据
 	useEffect(() => {
-		const existingComponent = components.find(c => c.name === "step1") as EventMonitor
-		if (existingComponent) {
-			// 找到了之前保存的数据，重新填充表单
-			setContractAddress(existingComponent.contract_address || '')
-			setAbiPath(existingComponent.abi_path || '')
-			setSelectedEvents(existingComponent.events_to_monitor || [])
+		if (!currentPipelineId) {
+			// 没有选中管道时，清空表单
+			setContractAddress('')
+			setAbiPath('')
+			setSelectedEvents([])
+			setUploadedFilePath('')
+			setValidationMessage('')
+			setDynamicEvents([])
+			return
+		}
+
+		// 从全局 components 中查找 event_monitor 类型的组件
+		const eventMonitorComponent = components.find((c: any) => c.type === 'event_monitor')
+		
+		if (eventMonitorComponent) {
+			console.log('🔄 从全局 components 恢复 Step1 数据:', eventMonitorComponent)
 			
-			// 如果有 ABI 路径，设置上传文件路径
-			if (existingComponent.abi_path) {
-				setUploadedFilePath(existingComponent.abi_path)
+			// 恢复表单数据
+			setContractAddress(eventMonitorComponent.contract_address || '')
+			setAbiPath(eventMonitorComponent.abi_path || '')
+			setSelectedEvents(eventMonitorComponent.events_to_monitor || [])
+			
+			if (eventMonitorComponent.abi_path) {
+				setUploadedFilePath(eventMonitorComponent.abi_path)
 			}
 			
-			// 设置验证消息提示用户数据已恢复
-			const eventCount = existingComponent.events_to_monitor?.length || 0
-			setValidationMessage(`🔄 已从之前保存的数据中恢复表单内容 (合约: ${existingComponent.contract_address?.slice(0, 10)}..., 事件: ${eventCount}个)`)
+			// 如果有事件数据，设置为动态事件（模拟从ABI解析得到）
+			if (eventMonitorComponent.events_to_monitor && eventMonitorComponent.events_to_monitor.length > 0) {
+				setDynamicEvents(eventMonitorComponent.events_to_monitor)
+			}
 			
-			// 调试信息
-			console.log('从 components 中恢复数据:', existingComponent)
+			const eventCount = eventMonitorComponent.events_to_monitor?.length || 0
+			const contractShort = eventMonitorComponent.contract_address?.slice(0, 10) || 'N/A'
 			
-			// 5秒后清除恢复提示信息
+			setValidationMessage(`✅ 已从管道 ${currentPipelineId} 自动加载配置数据\n合约地址: ${contractShort}...\nABI路径: ${eventMonitorComponent.abi_path || 'N/A'}\n监控事件: ${eventCount}个`)
+			
 			setTimeout(() => {
 				setValidationMessage('')
-			}, 5000)
+			}, 8000)
+		} else {
+			// 没有找到对应组件，清空表单
+			setContractAddress('')
+			setAbiPath('')
+			setSelectedEvents([])
+			setUploadedFilePath('')
+			setDynamicEvents([])
+			
+			if (components.length === 0) {
+				setValidationMessage('📝 当前管道暂无配置数据，请开始配置')
+			} else {
+				setValidationMessage('📝 当前管道没有事件监控组件，请开始配置')
+			}
+			
+			setTimeout(() => {
+				setValidationMessage('')
+			}, 3000)
 		}
-	}, [components]) // 依赖 components 变化
+	}, [components, currentPipelineId])
 
 	// 常用事件列表（默认 + 动态解析）
 	const defaultEvents: string[] = []
@@ -519,60 +552,60 @@ export default function Step1() {
 
 			{/* 数据预览 - 从 components 中获取数据 */}
 			{(() => {
-				const step1Component = components.find(c => c.name === "step1") as EventMonitor
-				return step1Component && (
+				const eventMonitorComponent = components.find((c: any) => c.type === 'event_monitor')
+				return eventMonitorComponent && (
 					<Box title="Current Data Plan" right={
 						<span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">
-							从 Components 加载
+							从管道 {currentPipelineId} 加载
 						</span>
 					}>
 						<div className="space-y-2">
 							{/* 组件名称 */}
 							<div className="flex items-center justify-between py-1 border-b border-gray-100">
 								<span className="text-sm font-medium text-gray-700">Component Name</span>
-								<span className="text-sm text-gray-900 font-medium">
-									{step1Component.name || '-'}
-								</span>
+																			<span className="text-sm text-gray-900 font-medium">
+												{eventMonitorComponent.name || '-'}
+											</span>
 							</div>
 
 							{/* 组件类型 */}
 							<div className="flex items-center justify-between py-1 border-b border-gray-100">
 								<span className="text-sm font-medium text-gray-700">Component Type</span>
-								<span className="text-sm text-gray-900 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-									{step1Component.type || '-'}
-								</span>
+																			<span className="text-sm text-gray-900 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+												{eventMonitorComponent.type || '-'}
+											</span>
 							</div>
 
 							{/* 链名称 */}
 							<div className="flex items-center justify-between py-1 border-b border-gray-100">
 								<span className="text-sm font-medium text-gray-700">Chain Name</span>
-								<span className="text-sm text-gray-900 px-2 py-1 bg-green-100 text-green-800 rounded-full">
-									{step1Component.chain_name || '-'}
-								</span>
+																			<span className="text-sm text-gray-900 px-2 py-1 bg-green-100 text-green-800 rounded-full">
+												{eventMonitorComponent.chain_name || '-'}
+											</span>
 							</div>
 
 							{/* 合约地址 */}
 							<div className="flex items-start justify-between py-1 border-b border-gray-100">
 								<span className="text-sm font-medium text-gray-700">Contract Address</span>
-								<span className="text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
-									{step1Component.contract_address || '-'}
-								</span>
+																			<span className="text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
+												{eventMonitorComponent.contract_address || '-'}
+											</span>
 							</div>
 
 							{/* ABI 路径 */}
 							<div className="flex items-start justify-between py-1 border-b border-gray-100">
 								<span className="text-sm font-medium text-gray-700">ABI Path</span>
-								<span className="text-sm text-gray-900 bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
-									{step1Component.abi_path || '-'}
-								</span>
+																			<span className="text-sm text-gray-900 bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
+												{eventMonitorComponent.abi_path || '-'}
+											</span>
 							</div>
 
 							{/* 监控事件 */}
 							<div className="py-1">
 								<div className="text-sm font-medium text-gray-700 mb-2">Events to Monitor</div>
 								<div className="flex flex-wrap gap-2">
-									{step1Component.events_to_monitor && step1Component.events_to_monitor.length > 0 ? (
-										step1Component.events_to_monitor.map((event, index) => (
+																			{eventMonitorComponent.events_to_monitor && eventMonitorComponent.events_to_monitor.length > 0 ? (
+											eventMonitorComponent.events_to_monitor.map((event: any, index: number) => (
 											<span
 												key={index}
 												className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full font-medium"

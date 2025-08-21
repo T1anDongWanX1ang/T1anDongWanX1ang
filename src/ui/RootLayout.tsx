@@ -6,9 +6,10 @@ import { NavLink } from 'react-router-dom'
 const steps = [
 	{ id: 1, name: 'Step 1: Define Data Plan', path: '/step-1' },
 	{ id: 2, name: 'Step 2: Field Mapping Rules', path: '/step-2' },
-	{ id: 3, name: 'Step 3: Mapping Validation', path: '/step-3' },
-	{ id: 4, name: 'Step 4: SQL Editor & Test Run', path: '/step-4' },
-	{ id: 5, name: 'Step 5: Ingestion Configuration', path: '/step-5' },
+	{ id: 3, name: 'Step 3: Kafka Producer', path: '/step-3' },
+	{ id: 4, name: 'Step 4: Mapping Validation', path: '/step-4' },
+	{ id: 5, name: 'Step 5: SQL Editor & Test Run', path: '/step-5' },
+	{ id: 6, name: 'Step 6: Data Ingestion', path: '/step-6' },
 ]
 
 export default function RootLayout() {

@@ -8,6 +8,7 @@ import Step2 from './ui/steps/Step2'
 import Step3 from './ui/steps/Step3'
 import Step4 from './ui/steps/Step4'
 import Step5 from './ui/steps/Step5'
+import Step6 from './ui/steps/Step6'
 import ChainConfig from './ui/steps/ChainConfig'
 import { AppStateProvider } from './state/AppState'
 
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
 			{ path: 'step-3', element: <Step3 /> },
 			{ path: 'step-4', element: <Step4 /> },
 			{ path: 'step-5', element: <Step5 /> },
+			{ path: 'step-6', element: <Step6 /> },
 			{ path: 'chain-config', element: <ChainConfig /> },
 		],
 	},

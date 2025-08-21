@@ -4,652 +4,540 @@ import { useAppState } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI } from '../../services/api'
 
-// 定义JSON配置的类型
-interface ChainConfig {
-	id: number
-	kafka: {
-		topics: string
-		groupId: string
-	}
-	doris: {
-		host: string
-		port: string
-		user: string
-		password: string
-		db: string
-	}
-	mapper: {
-		[key: string]: string
-	}
-	tables: {
-		[tableName: string]: {
-			name: string
-			columns: string[]
-			buffer: {
-				size: number
-			}
-		}
-	}
-}
-
-interface IngestionConfig {
-	job: {
-		name: string
-	}
-	kafka: {
-		servers: string
-	}
-	chains: string[]
-	chainConfigs: {
-		[chainName: string]: ChainConfig
-	}
-}
-
 export default function Step5() {
-	const { currentProtocolId, currentColumnId, columns, updateKafka, components } = useAppState()
+	const { currentColumnId, columns, updateSqlText } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
-	const [saveMessage, setSaveMessage] = useState('')
-	const [configFile, setConfigFile] = useState<File | null>(null)
-	const [configData, setConfigData] = useState<IngestionConfig | null>(null)
-	const [selectedChain, setSelectedChain] = useState<string>('')
-	const [selectedTable, setSelectedTable] = useState<string>('')
-	const [selectedColumns, setSelectedColumns] = useState<string[]>([])
-	const [mappingFieldsSelection, setMappingFieldsSelection] = useState<{[key: string]: boolean}>({})
+	const [sqlText, setSqlText] = useState('')
 	const [testResults, setTestResults] = useState<{
-		kafka: { success: boolean; message: string; details?: any } | null
-		doris: { success: boolean; message: string; details?: any } | null
-		overall: { success: boolean; message: string } | null
-	}>({
-		kafka: null,
-		doris: null,
-		overall: null
-	})
+		success: boolean
+		message: string
+		executionTime?: number
+		rowCount?: number
+		sampleData?: any[]
+		errors?: string[]
+	} | null>(null)
+	const [showSampleData, setShowSampleData] = useState(false)
+	const [sqlHistory, setSqlHistory] = useState<string[]>([])
+	const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1)
+	const [autoSave, setAutoSave] = useState(true)
+	const [lastSaved, setLastSaved] = useState<Date | null>(null)
+	const editorRef = useRef<HTMLTextAreaElement>(null)
 	
-	const fileInputRef = useRef<HTMLInputElement>(null)
-	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
 	const currentColumn = columns.find(c => c.id === currentColumnId)
-
-	// 从Step2获取字段映射结果
-	const step2Component = components.find(c => c.name === "step2")
-	const mappingRules = step2Component?.mapping_rules || []
-
-	// 初始化字段映射选择状态
+	
+	// 初始化SQL文本
 	useEffect(() => {
-		if (mappingRules.length > 0) {
-			const initialSelection: {[key: string]: boolean} = {}
-			mappingRules.forEach((rule: any) => {
-				initialSelection[rule.target_key] = true // 默认选中所有映射字段
-			})
-			setMappingFieldsSelection(initialSelection)
+		if (currentColumn) {
+			setSqlText(currentColumn.sqlText || '')
 		}
-	}, [mappingRules])
+	}, [currentColumn])
 
-	// 处理JSON配置文件上传
-	const handleConfigFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0]
-		if (!file) return
+	// 自动保存功能
+	useEffect(() => {
+		if (autoSave && sqlText.trim() && currentColumnId) {
+			const timer = setTimeout(() => {
+				updateSqlText(currentColumnId, sqlText)
+				setLastSaved(new Date())
+			}, 2000) // 2秒后自动保存
+			
+			return () => clearTimeout(timer)
+		}
+	}, [sqlText, autoSave, currentColumnId, updateSqlText])
 
-		setIsLoading(true)
-		try {
-			const content = await file.text()
-			const jsonData = JSON.parse(content) as IngestionConfig
+	// 保存SQL到本地状态
+	const handleSaveSQL = () => {
+		if (currentColumnId && sqlText.trim()) {
+			updateSqlText(currentColumnId, sqlText)
+			setLastSaved(new Date())
 			
-			setConfigFile(file)
-			setConfigData(jsonData)
-			
-			// 根据当前协议的链自动选择对应的配置
-			if (currentProtocol?.chain) {
-				const chainName = currentProtocol.chain.toLowerCase()
-				if (jsonData.chainConfigs[chainName]) {
-					setSelectedChain(chainName)
-					// 自动选择第一个表
-					const tables = Object.keys(jsonData.chainConfigs[chainName].tables)
-					if (tables.length > 0) {
-						setSelectedTable(tables[0])
-						setSelectedColumns(jsonData.chainConfigs[chainName].tables[tables[0]].columns)
-					}
-				}
+			// 添加到历史记录
+			if (!sqlHistory.includes(sqlText)) {
+				setSqlHistory(prev => [sqlText, ...prev.slice(0, 9)]) // 保留最近10条
 			}
-			
-			setSaveMessage('✅ 配置文件加载成功')
-		} catch (error) {
-			console.error('Config file parse failed:', error)
-			setSaveMessage('❌ 配置文件格式错误，请检查JSON格式')
-		} finally {
-			setIsLoading(false)
 		}
 	}
 
-	// 选择链配置
-	const handleChainSelect = (chainName: string) => {
-		setSelectedChain(chainName)
-		setSelectedTable('')
-		setSelectedColumns([])
+	// 加载SQL模板
+	const loadSQLTemplate = (templateType: string) => {
+		let template = ''
 		
-		if (configData?.chainConfigs[chainName]) {
-			const tables = Object.keys(configData.chainConfigs[chainName].tables)
-			if (tables.length > 0) {
-				setSelectedTable(tables[0])
-				setSelectedColumns(configData.chainConfigs[chainName].tables[tables[0]].columns)
-			}
+		switch (templateType) {
+			case 'select':
+				template = `SELECT 
+    block_number,
+    transaction_hash,
+    from_address,
+    to_address,
+    value,
+    timestamp
+FROM blockchain_events 
+WHERE chain_name = '${currentColumn?.chain || 'ethereum'}'
+  AND protocol_type = '${currentColumn?.type || 'dex'}'
+  AND block_number >= 19380000
+ORDER BY block_number DESC
+LIMIT 100;`
+				break
+			case 'insert':
+				template = `INSERT INTO processed_events (
+    event_id,
+    chain_name,
+    protocol_type,
+    block_number,
+    transaction_hash,
+    from_address,
+    to_address,
+    value,
+    processed_at
+) VALUES (
+    :event_id,
+    '${currentColumn?.chain || 'ethereum'}',
+    '${currentColumn?.type || 'dex'}',
+    :block_number,
+    :transaction_hash,
+    :from_address,
+    :to_address,
+    :value,
+    NOW()
+);`
+				break
+			case 'update':
+				template = `UPDATE processed_events 
+SET 
+    status = 'processed',
+    updated_at = NOW()
+WHERE event_id = :event_id
+  AND chain_name = '${currentColumn?.chain || 'ethereum'}';`
+				break
+			case 'delete':
+				template = `DELETE FROM processed_events 
+WHERE chain_name = '${currentColumn?.chain || 'ethereum'}'
+  AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+  AND status = 'archived';`
+				break
+			case 'aggregate':
+				template = `SELECT 
+    DATE(created_at) as date,
+    COUNT(*) as event_count,
+    SUM(CAST(value AS DECIMAL(65,18))) as total_value,
+    AVG(CAST(value AS DECIMAL(65,18))) as avg_value
+FROM processed_events 
+WHERE chain_name = '${currentColumn?.chain || 'ethereum'}'
+  AND protocol_type = '${currentColumn?.type || 'dex'}'
+  AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+GROUP BY DATE(created_at)
+ORDER BY date DESC;`
+				break
+			default:
+				template = `-- ${templateType} SQL Template
+-- 请根据实际需求修改此模板`
 		}
+		
+		setSqlText(template)
 	}
 
-	// 选择表
-	const handleTableSelect = (tableName: string) => {
-		setSelectedTable(tableName)
-		if (configData?.chainConfigs[selectedChain]?.tables[tableName]) {
-			setSelectedColumns(configData.chainConfigs[selectedChain].tables[tableName].columns)
-		}
-	}
-
-	// 切换JSON配置字段选择
-	const toggleColumnSelection = (columnName: string) => {
-		setSelectedColumns(prev => 
-			prev.includes(columnName) 
-				? prev.filter(col => col !== columnName)
-				: [...prev, columnName]
-		)
-	}
-
-	// 切换映射字段选择
-	const toggleMappingFieldSelection = (fieldName: string) => {
-		setMappingFieldsSelection(prev => ({
-			...prev,
-			[fieldName]: !prev[fieldName]
-		}))
-	}
-
-	// 测试Kafka连接
-	const testKafkaConnection = async () => {
-		if (!configData || !selectedChain) return
-
-		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, kafka: null }))
-
+	// 格式化SQL
+	const formatSQL = () => {
 		try {
-			const chainConfig = configData.chainConfigs[selectedChain]
-			const response = await fieldParsingAPI.testKafkaConnection({
-				host: configData.kafka.servers.split(':')[0],
-				port: parseInt(configData.kafka.servers.split(':')[1]),
-				topic: chainConfig.kafka.topics,
-				settings: {
-					groupId: chainConfig.kafka.groupId,
-					servers: configData.kafka.servers
-				}
-			})
-
-			if (response.success) {
-				setTestResults(prev => ({
-					...prev,
-					kafka: {
-						success: true,
-						message: 'Kafka连接测试成功',
-						details: response.data
-					}
-				}))
-			} else {
-				setTestResults(prev => ({
-					...prev,
-					kafka: {
-						success: false,
-						message: `Kafka连接失败: ${response.data.message}`,
-						details: response.data
-					}
-				}))
-			}
+			// 简单的SQL格式化逻辑
+			let formatted = sqlText
+				.replace(/\s+/g, ' ') // 合并多个空格
+				.replace(/\s*([,()])\s*/g, '$1 ') // 在逗号和括号后添加空格
+				.replace(/\s*(SELECT|FROM|WHERE|ORDER BY|GROUP BY|HAVING|LIMIT|INSERT|UPDATE|DELETE|INTO|SET|VALUES)\s+/gi, '\n$1 ') // 关键字换行
+				.replace(/\s*AND\s+/gi, '\n  AND ') // AND换行并缩进
+				.replace(/\s*OR\s+/gi, '\n  OR ') // OR换行并缩进
+				.trim()
+			
+			setSqlText(formatted)
 		} catch (error) {
-			console.error('Kafka connection test failed:', error)
-			setTestResults(prev => ({
-				...prev,
-				kafka: {
-					success: false,
-					message: 'Kafka连接测试失败，请检查网络连接'
-				}
-			}))
-		} finally {
-			setIsLoading(false)
+			console.error('SQL formatting failed:', error)
 		}
 	}
 
-	// 测试Doris连接
-	const testDorisConnection = async () => {
-		if (!configData || !selectedChain) return
-
-		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, doris: null }))
-
-		try {
-			const chainConfig = configData.chainConfigs[selectedChain]
-			const response = await fieldParsingAPI.testDorisConnection({
-				host: chainConfig.doris.host,
-				port: parseInt(chainConfig.doris.port),
-				username: chainConfig.doris.user,
-				password: chainConfig.doris.password,
-				database: chainConfig.doris.db,
-				table: selectedTable
-			})
-
-			if (response.success) {
-				setTestResults(prev => ({
-					...prev,
-					doris: {
-						success: true,
-						message: 'Doris连接测试成功',
-						details: response.data
-					}
-				}))
-			} else {
-				setTestResults(prev => ({
-					...prev,
-					doris: {
-						success: false,
-						message: `Doris连接失败: ${response.data.message}`,
-						details: response.data
-					}
-				}))
-			}
-		} catch (error) {
-			console.error('Doris connection test failed:', error)
-			setTestResults(prev => ({
-				...prev,
-				doris: {
-					success: false,
-					message: 'Doris连接测试失败，请检查网络连接'
-				}
-			}))
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 运行完整测试
-	const runFullTest = async () => {
-		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, overall: null }))
-
-		try {
-			await Promise.allSettled([
-				testKafkaConnection(),
-				testDorisConnection()
-			])
-
-			setTimeout(() => {
-				const kafkaSuccess = testResults.kafka?.success ?? false
-				const dorisSuccess = testResults.doris?.success ?? false
-				const overallSuccess = kafkaSuccess && dorisSuccess
-
-				setTestResults(prev => ({
-					...prev,
-					overall: {
-						success: overallSuccess,
-						message: overallSuccess ? '所有连接测试通过' : '存在连接问题，请检查配置'
-					}
-				}))
-			}, 1000)
-		} catch (error) {
-			console.error('Full test failed:', error)
-			setTestResults(prev => ({
-				...prev,
-				overall: { success: false, message: '测试过程发生错误' }
-			}))
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 保存配置到后端
-	const saveConfiguration = async () => {
-		if (!currentProtocolId || !configData || !selectedChain || !selectedTable) {
-			setSaveMessage('❌ 请完成所有配置选择')
+	// 验证SQL语法
+	const validateSQL = async () => {
+		if (!sqlText.trim()) {
+			setTestResults({ success: false, message: '请先输入SQL语句' })
 			return
 		}
 
 		setIsLoading(true)
-		setSaveMessage('')
-
 		try {
-			const chainConfig = configData.chainConfigs[selectedChain]
+			// 调用后端API验证SQL
+			const response = await fieldParsingAPI.validateSQL(sqlText)
 			
-			// 获取选中的映射字段
-			const selectedMappingFields = Object.keys(mappingFieldsSelection)
-				.filter(key => mappingFieldsSelection[key])
-			
-			// 构建保存的配置数据
-			const configToSave = {
-				column_id: currentColumnId || 'default-column',
-				chain_name: selectedChain,
-				protocol_type: 'event_monitor',
-				kafka_config: {
-					servers: configData.kafka.servers,
-					topics: chainConfig.kafka.topics,
-					groupId: chainConfig.kafka.groupId
-				},
-				doris_config: {
-					host: chainConfig.doris.host,
-					port: chainConfig.doris.port,
-					user: chainConfig.doris.user,
-					password: chainConfig.doris.password,
-					database: chainConfig.doris.db,
-					table: selectedTable,
-					columns: selectedColumns,
-					mapper: chainConfig.mapper[selectedTable] || 'defaultMapper'
-				},
-				mapping_fields: selectedMappingFields,
-				field_mappings: mappingRules.filter((rule: any) => 
-					selectedMappingFields.includes(rule.target_key)
-				),
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			}
-
-			// 调用后端API保存配置
-			const response = await fieldParsingAPI.saveIngestionConfig(configToSave)
-
-			if (response.success) {
-				setSaveMessage('✅ 配置已成功保存到后端')
-				
-				// 更新本地状态
-				if (currentColumnId) {
-					updateKafka(currentColumnId, { enableCompression: true, retryBackoff: true })
-				}
+			if (response.success && response.data.valid) {
+				setTestResults({ 
+					success: true, 
+					message: 'SQL语法验证通过',
+					errors: response.data.warnings || []
+				})
 			} else {
-				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
+				setTestResults({ 
+					success: false, 
+					message: 'SQL语法验证失败',
+					errors: response.data.errors || []
+				})
 			}
 		} catch (error) {
-			console.error('Save configuration failed:', error)
-			setSaveMessage('❌ 保存失败，请检查网络连接')
+			console.error('SQL validation failed:', error)
+			setTestResults({ 
+				success: false, 
+				message: 'SQL验证失败，请检查网络连接' 
+			})
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 重置配置
-	const resetConfiguration = () => {
-		setConfigFile(null)
-		setConfigData(null)
-		setSelectedChain('')
-		setSelectedTable('')
-		setSelectedColumns([])
-		setTestResults({ kafka: null, doris: null, overall: null })
-		setSaveMessage('')
-		if (fileInputRef.current) {
-			fileInputRef.current.value = ''
+	// 执行SQL测试
+	const executeSQLTest = async () => {
+		if (!sqlText.trim()) {
+			setTestResults({ success: false, message: '请先输入SQL语句' })
+			return
+		}
+
+		setIsLoading(true)
+		const startTime = Date.now()
+		
+		try {
+			// 调用后端API执行SQL测试
+			const response = await fieldParsingAPI.executeSQLTest({
+				sql: sqlText,
+				chain_name: currentColumn?.chain?.toLowerCase() || 'ethereum',
+				protocol_type: currentColumn?.type?.toLowerCase() || 'dex',
+				test_mode: true
+			})
+			
+			const executionTime = Date.now() - startTime
+			
+			if (response.success) {
+				setTestResults({
+					success: true,
+					message: 'SQL执行成功',
+					executionTime,
+					rowCount: response.data.row_count || 0,
+					sampleData: response.data.sample_data || []
+				})
+			} else {
+				setTestResults({
+					success: false,
+					message: `SQL执行失败: ${response.data.message}`,
+					executionTime,
+					errors: response.data.errors || []
+				})
+			}
+		} catch (error) {
+			console.error('SQL execution failed:', error)
+			setTestResults({
+				success: false,
+				message: 'SQL执行失败，请检查网络连接',
+				executionTime: Date.now() - startTime
+			})
+		} finally {
+			setIsLoading(false)
+		}
+	}
+
+	// 清空SQL
+	const clearSQL = () => {
+		if (confirm('确定要清空SQL内容吗？')) {
+			setSqlText('')
+			setTestResults(null)
+		}
+	}
+
+	// 撤销/重做功能
+	const undo = () => {
+		if (currentHistoryIndex < sqlHistory.length - 1) {
+			const newIndex = currentHistoryIndex + 1
+			setCurrentHistoryIndex(newIndex)
+			setSqlText(sqlHistory[newIndex])
+		}
+	}
+
+	const redo = () => {
+		if (currentHistoryIndex > 0) {
+			const newIndex = currentHistoryIndex - 1
+			setCurrentHistoryIndex(newIndex)
+			setSqlText(sqlHistory[newIndex])
+		}
+	}
+
+	// 键盘快捷键
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		if (e.ctrlKey || e.metaKey) {
+			switch (e.key) {
+				case 's':
+					e.preventDefault()
+					handleSaveSQL()
+					break
+				case 'z':
+					e.preventDefault()
+					undo()
+					break
+				case 'y':
+					e.preventDefault()
+					redo()
+					break
+				case 'Enter':
+					e.preventDefault()
+					executeSQLTest()
+					break
+			}
 		}
 	}
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div>
-				<h1 className="text-2xl font-bold text-gray-900">Step 5: 数据摄入配置</h1>
-				<p className="text-gray-600 mt-2">
-					上传JSON配置文件，选择要入库的表和字段，并确认从Step2映射的字段
-				</p>
-				{currentProtocol && (
-					<div className="mt-2 p-2 bg-blue-50 rounded-md">
-						<p className="text-sm text-blue-700">
-							当前协议: <strong>{currentProtocol.name}</strong> ({currentProtocol.chain} • {currentProtocol.type})
-						</p>
+			<div className="flex items-center justify-between">
+				<h2 className="text-lg font-semibold">Step 5: SQL Editor & Test Run</h2>
+				{currentColumn && (
+					<div className="text-sm text-gray-600">
+						Column: {currentColumn.name} ({currentColumn.chain} • {currentColumn.type})
 					</div>
 				)}
 			</div>
 
-			{/* Step2 字段映射结果 */}
-			{mappingRules.length > 0 && (
-				<Box title="Step2 字段映射结果" className="space-y-4">
-					<div>
-						<p className="text-sm text-gray-600 mb-3">
-							以下是从Step2获取的字段映射规则，请选择要入库的字段：
-						</p>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
-							{mappingRules.map((rule: any, index: number) => (
-								<label key={index} className="flex items-start space-x-3 text-sm">
-									<input
-										type="checkbox"
-										checked={mappingFieldsSelection[rule.target_key] || false}
-										onChange={() => toggleMappingFieldSelection(rule.target_key)}
-										className="mt-1 rounded border-gray-300 text-brand focus:ring-brand"
-									/>
-									<div className="flex-1">
-										<div className="font-medium">{rule.target_key}</div>
-										<div className="text-xs text-gray-500">
-											源字段: {rule.source_key} → 转换器: {rule.transformer || '无转换'}
-										</div>
-										{rule.description && (
-											<div className="text-xs text-gray-400">{rule.description}</div>
-										)}
-									</div>
-								</label>
-							))}
-						</div>
-						<p className="text-sm text-gray-500 mt-2">
-							已选择 {Object.values(mappingFieldsSelection).filter(Boolean).length} 个映射字段
-						</p>
-					</div>
-				</Box>
-			)}
-
-			{/* Configuration File Upload */}
-			<Box title="JSON配置文件上传" className="space-y-4">
-				<div className="space-y-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							上传JSON配置文件
-						</label>
-						<div className="flex items-center gap-4">
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept=".json"
-								onChange={handleConfigFileUpload}
-								className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand file:text-white hover:file:bg-brand/90"
-							/>
-							<button
-								onClick={resetConfiguration}
-								className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-							>
-								重置
-							</button>
-						</div>
-						{configFile && (
-							<p className="text-sm text-green-600 mt-2">
-								已加载: {configFile.name}
-							</p>
-						)}
-					</div>
-
-					{saveMessage && (
-						<div className={`p-3 rounded-md text-sm ${
-							saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-						}`}>
-							{saveMessage}
-						</div>
-					)}
+			{/* SQL模板 */}
+			<Box title="SQL Templates" right={
+				<div className="flex gap-2">
+					<button
+						className="btn btn-secondary text-xs"
+						onClick={() => loadSQLTemplate('select')}
+					>
+						SELECT
+					</button>
+					<button
+						className="btn btn-secondary text-xs"
+						onClick={() => loadSQLTemplate('insert')}
+					>
+						INSERT
+					</button>
+					<button
+						className="btn btn-secondary text-xs"
+						onClick={() => loadSQLTemplate('update')}
+					>
+						UPDATE
+					</button>
+					<button
+						className="btn btn-secondary text-xs"
+						onClick={() => loadSQLTemplate('delete')}
+					>
+						DELETE
+					</button>
+					<button
+						className="btn btn-secondary text-xs"
+						onClick={() => loadSQLTemplate('aggregate')}
+					>
+						AGGREGATE
+					</button>
+				</div>
+			}>
+				<div className="text-sm text-gray-600">
+					选择SQL模板快速开始，或手动编写SQL语句
 				</div>
 			</Box>
 
-			{/* Chain and Table Selection */}
-			{configData && (
-				<Box title="链和表选择" className="space-y-4">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{/* Chain Selection */}
-						<div>
-							<label className="block text-sm font-medium text-gray-700 mb-2">
-								选择区块链
-							</label>
-							<select
-								value={selectedChain}
-								onChange={(e) => handleChainSelect(e.target.value)}
-								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
-							>
-								<option value="">请选择链...</option>
-								{configData.chains.map(chain => (
-									<option key={chain} value={chain}>
-										{chain.toUpperCase()} (ID: {configData.chainConfigs[chain]?.id})
-									</option>
-								))}
-							</select>
-						</div>
-
-						{/* Table Selection */}
-						{selectedChain && (
-							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-2">
-									选择数据表
-								</label>
-								<select
-									value={selectedTable}
-									onChange={(e) => handleTableSelect(e.target.value)}
-									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
-								>
-									<option value="">请选择表...</option>
-									{Object.keys(configData.chainConfigs[selectedChain].tables).map(tableName => (
-										<option key={tableName} value={tableName}>
-											{tableName}
-										</option>
-									))}
-								</select>
-							</div>
-						)}
-					</div>
-
-					{/* Configuration Preview */}
-					{selectedChain && (
-						<div className="mt-4 p-4 bg-gray-50 rounded-md">
-							<h4 className="text-sm font-medium text-gray-700 mb-2">配置预览</h4>
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-								<div>
-									<p><strong>Kafka服务器:</strong> {configData.kafka.servers}</p>
-									<p><strong>Topic:</strong> {configData.chainConfigs[selectedChain].kafka.topics}</p>
-									<p><strong>Group ID:</strong> {configData.chainConfigs[selectedChain].kafka.groupId}</p>
-								</div>
-								<div>
-									<p><strong>Doris主机:</strong> {configData.chainConfigs[selectedChain].doris.host}:{configData.chainConfigs[selectedChain].doris.port}</p>
-									<p><strong>数据库:</strong> {configData.chainConfigs[selectedChain].doris.db}</p>
-									<p><strong>用户:</strong> {configData.chainConfigs[selectedChain].doris.user}</p>
-								</div>
-							</div>
-						</div>
+			{/* SQL编辑器 */}
+			<Box title="SQL Editor" right={
+				<div className="flex gap-2">
+					<label className="flex items-center space-x-2 text-sm">
+						<input
+							type="checkbox"
+							checked={autoSave}
+							onChange={(e) => setAutoSave(e.target.checked)}
+							className="h-4 w-4 text-brand focus:ring-brand border-gray-300 rounded"
+						/>
+						<span>自动保存</span>
+					</label>
+					{lastSaved && (
+						<span className="text-xs text-gray-500">
+							最后保存: {lastSaved.toLocaleTimeString()}
+						</span>
 					)}
-				</Box>
-			)}
-
-			{/* JSON Table Column Selection */}
-			{selectedTable && configData && (
-				<Box title="JSON配置表字段选择" className="space-y-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							选择要入库的表字段 (表: {selectedTable})
-						</label>
-						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
-							{configData.chainConfigs[selectedChain].tables[selectedTable].columns.map(column => (
-								<label key={column} className="flex items-center space-x-2 text-sm">
-									<input
-										type="checkbox"
-										checked={selectedColumns.includes(column)}
-										onChange={() => toggleColumnSelection(column)}
-										className="rounded border-gray-300 text-brand focus:ring-brand"
-									/>
-									<span className="truncate" title={column}>{column}</span>
-								</label>
+				</div>
+			}>
+				<div className="space-y-4">
+					<div className="relative">
+						<textarea
+							ref={editorRef}
+							className="input w-full h-64 font-mono text-sm leading-relaxed"
+							placeholder="在此输入SQL语句..."
+							value={sqlText}
+							onChange={(e) => setSqlText(e.target.value)}
+							onKeyDown={handleKeyDown}
+							spellCheck={false}
+						/>
+						
+						{/* 行号显示 */}
+						<div className="absolute left-0 top-0 w-12 h-full bg-gray-100 text-xs text-gray-500 font-mono select-none pointer-events-none">
+							{sqlText.split('\n').map((_, index) => (
+								<div key={index} className="h-6 leading-6 text-right pr-2">
+									{index + 1}
+								</div>
 							))}
 						</div>
-						<p className="text-sm text-gray-500 mt-2">
-							已选择 {selectedColumns.length} 个表字段
-						</p>
-					</div>
-				</Box>
-			)}
-
-			{/* Connection Testing */}
-			{selectedChain && selectedTable && (
-				<Box title="连接测试" className="space-y-4">
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<button
-							onClick={testKafkaConnection}
-							disabled={isLoading}
-							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-						>
-							{isLoading ? '测试中...' : '测试Kafka连接'}
-						</button>
-						<button
-							onClick={testDorisConnection}
-							disabled={isLoading}
-							className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-						>
-							{isLoading ? '测试中...' : '测试Doris连接'}
-						</button>
-						<button
-							onClick={runFullTest}
-							disabled={isLoading}
-							className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
-						>
-							{isLoading ? '测试中...' : '完整测试'}
-						</button>
-					</div>
-
-					{/* Test Results */}
-					<div className="space-y-2">
-						{testResults.kafka && (
-							<div className={`p-3 rounded-md text-sm ${
-								testResults.kafka.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-							}`}>
-								<strong>Kafka:</strong> {testResults.kafka.message}
-							</div>
-						)}
-						{testResults.doris && (
-							<div className={`p-3 rounded-md text-sm ${
-								testResults.doris.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-							}`}>
-								<strong>Doris:</strong> {testResults.doris.message}
-							</div>
-						)}
-						{testResults.overall && (
-							<div className={`p-3 rounded-md text-sm font-medium ${
-								testResults.overall.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-							}`}>
-								<strong>整体结果:</strong> {testResults.overall.message}
-							</div>
-						)}
-					</div>
-				</Box>
-			)}
-
-			{/* Save Configuration */}
-			{selectedChain && selectedTable && selectedColumns.length > 0 && (
-				<Box title="保存配置" className="space-y-4">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="text-sm text-gray-600">
-								配置完成，准备保存到后端
-							</p>
-							<p className="text-xs text-gray-500 mt-1">
-								链: {selectedChain} | 表: {selectedTable} | 表字段: {selectedColumns.length}个 | 映射字段: {Object.values(mappingFieldsSelection).filter(Boolean).length}个
-							</p>
+						
+						{/* 字符计数 */}
+						<div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-white px-2 py-1 rounded">
+							{sqlText.length} 字符
 						</div>
-						<button
-							onClick={saveConfiguration}
-							disabled={isLoading}
-							className="px-6 py-2 bg-brand text-white rounded-md hover:bg-brand/90 disabled:opacity-50"
-						>
-							{isLoading ? '保存中...' : '保存配置'}
-						</button>
+					</div>
+					
+					<div className="flex gap-2 text-sm text-gray-600">
+						<span>快捷键: Ctrl+S 保存, Ctrl+Z 撤销, Ctrl+Y 重做, Ctrl+Enter 执行</span>
+					</div>
+				</div>
+			</Box>
+
+			{/* SQL操作工具栏 */}
+			<Box title="SQL Operations">
+				<div className="flex gap-3 flex-wrap">
+					<button
+						className="btn btn-secondary"
+						onClick={formatSQL}
+						disabled={!sqlText.trim()}
+					>
+						Format SQL
+					</button>
+					<button
+						className="btn btn-secondary"
+						onClick={validateSQL}
+						disabled={isLoading || !sqlText.trim()}
+					>
+						{isLoading ? '验证中...' : 'Validate SQL'}
+					</button>
+					<button
+						className="btn"
+						onClick={executeSQLTest}
+						disabled={isLoading || !sqlText.trim()}
+					>
+						{isLoading ? '执行中...' : 'Execute Test'}
+					</button>
+					<button
+						className="btn btn-secondary"
+						onClick={handleSaveSQL}
+						disabled={!sqlText.trim()}
+					>
+						Save SQL
+					</button>
+					<button
+						className="btn btn-secondary"
+						onClick={clearSQL}
+						disabled={!sqlText.trim()}
+					>
+						Clear
+					</button>
+					<button
+						className="btn btn-secondary"
+						onClick={undo}
+						disabled={currentHistoryIndex >= sqlHistory.length - 1}
+					>
+						Undo
+					</button>
+					<button
+						className="btn btn-secondary"
+						onClick={redo}
+						disabled={currentHistoryIndex <= 0}
+					>
+						Redo
+					</button>
+				</div>
+			</Box>
+
+			{/* 测试结果 */}
+			{testResults && (
+				<Box title="Test Results">
+					<div className="space-y-4">
+						<div className={`flex items-center space-x-2 text-lg ${testResults.success ? 'text-green-600' : 'text-red-600'}`}>
+							<span>{testResults.success ? '✅' : '❌'}</span>
+							<span className="font-medium">{testResults.message}</span>
+						</div>
+						
+						{testResults.executionTime && (
+							<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+								<div className="text-center">
+									<div className="text-2xl font-bold text-blue-600">{testResults.executionTime}ms</div>
+									<div className="text-sm text-gray-600">执行时间</div>
+								</div>
+								{testResults.rowCount !== undefined && (
+									<div className="text-center">
+										<div className="text-2xl font-bold text-green-600">{testResults.rowCount}</div>
+										<div className="text-sm text-gray-600">返回行数</div>
+									</div>
+								)}
+							</div>
+						)}
+						
+						{testResults.errors && testResults.errors.length > 0 && (
+							<div className="space-y-2">
+								<div className="text-sm font-medium text-red-700">错误详情:</div>
+								<ul className="list-disc list-inside space-y-1 text-sm text-red-600">
+									{testResults.errors.map((error, index) => (
+										<li key={index}>{error}</li>
+									))}
+								</ul>
+							</div>
+						)}
+						
+						{testResults.sampleData && testResults.sampleData.length > 0 && (
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<div className="text-sm font-medium text-gray-700">样本数据:</div>
+									<button
+										className="text-sm text-blue-600 hover:text-blue-800"
+										onClick={() => setShowSampleData(!showSampleData)}
+									>
+										{showSampleData ? '隐藏' : '显示'}数据
+									</button>
+								</div>
+								
+								{showSampleData && (
+									<div className="overflow-x-auto">
+										<table className="table text-xs">
+											<thead>
+												<tr>
+													{Object.keys(testResults.sampleData[0] || {}).map(key => (
+														<th key={key} className="px-2 py-1">{key}</th>
+													))}
+												</tr>
+											</thead>
+											<tbody>
+												{testResults.sampleData.slice(0, 5).map((row, index) => (
+													<tr key={index}>
+														{Object.values(row).map((value, colIndex) => (
+															<td key={colIndex} className="px-2 py-1 border-t">
+																{typeof value === 'string' && value.length > 50 
+																	? value.substring(0, 50) + '...' 
+																	: String(value)
+																}
+															</td>
+														))}
+													</tr>
+												))}
+											</tbody>
+										</table>
+										{testResults.sampleData.length > 5 && (
+											<div className="text-xs text-gray-500 mt-2">
+												显示前5行，共 {testResults.sampleData.length} 行
+											</div>
+										)}
+									</div>
+								)}
+							</div>
+						)}
 					</div>
 				</Box>
 			)}
 
-			{/* Navigation */}
-			<div className="flex justify-between pt-6 border-t border-gray-200">
-				<Link
-					to="/step-4"
-					className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-				>
-					← 上一步: SQL编辑器
+			{/* 操作按钮 */}
+			<div className="flex gap-3">
+				<Link to="/step-4" className="btn btn-secondary">
+					Back to Step 4
 				</Link>
-				<div className="text-sm text-gray-500">
-					最后一步 - 配置完成
-				</div>
+				<Link to="/step-6" className="btn">
+					Continue to Step 6
+				</Link>
 			</div>
 		</div>
 	)

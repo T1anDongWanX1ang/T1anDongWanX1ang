@@ -44,6 +44,11 @@ export const API_ENDPOINTS = {
 	// 文件管理相关
 	file: {
 		upload: '/api/v1/file/upload'
+	},
+	
+	// 管道相关
+	pipeline: {
+		tree: '/api/v1/pipeline/tree'
 	}
 }
 

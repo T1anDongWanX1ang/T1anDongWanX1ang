@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo } from 'react'
+import { api } from '../services/api'
 
 export type Chain = 'Ethereum' | 'Solana' | 'Base' | 'BSC'
 export type BizType = 'DEX' | 'Lending' | 'Bridge' | 'NFT' | 'GameFi' | 'Staking'
@@ -92,6 +93,13 @@ export type DictMapper = {
 	mapping_rules: DictMappingRule[]
 }
 
+export type KafkaProducer = {
+	name: string
+	type: "kafka_producer"
+	bootstrap_servers: string
+	topic: string
+}
+
 type AppState = {
 	chains: ChainTask[]
 	columns: ColumnTask[]
@@ -102,9 +110,11 @@ type AppState = {
 	currentChainId: string
 	currentProtocolId: string
 	currentColumnId: string
+	currentPipelineId: number | null  // 新增：当前管道ID
 	createChain: (chain: Chain) => void
 	deleteChain: (chainId: string) => void
 	setCurrentChain: (chainId: string) => void
+	setCurrentProtocolId: (protocolId: string) => void
 	createColumn: (chain: Chain, type: BizType) => void
 	deleteColumn: (columnId: string) => void
 	setCurrentColumn: (columnId: string) => void
@@ -121,6 +131,10 @@ type AppState = {
 	updateComponent: (name: string, component: any) => void
 	setComponents: (components: any[]) => void
 	setEventParams: (name: string, params: string[]) => void
+	
+	// Pipeline operations
+	setCurrentPipeline: (pipelineId: number | null) => void
+	loadPipelineConfig: (pipelineId: number) => Promise<void>
 	
 	// AI suggestions
 	applySuggestion: (id: string) => void
@@ -205,6 +219,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	const [currentChainId, setCurrentChainId] = useState<string>('chain-eth')
 	const [currentProtocolId, setCurrentProtocolId] = useState<string>('')
 	const [currentColumnId, setCurrentColumnId] = useState<string>('')
+	const [currentPipelineId, setCurrentPipelineId] = useState<number | null>(null)
 
 	const createChain = (chain: Chain) => {
 		console.log('Creating chain:', chain)
@@ -314,6 +329,81 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 		}))
 	}
 
+	// Pipeline operations
+	const setCurrentPipeline = (pipelineId: number | null) => {
+		setCurrentPipelineId(pipelineId)
+		console.log('Current pipeline ID set to:', pipelineId)
+	}
+
+	const loadPipelineConfig = async (pipelineId: number) => {
+		try {
+			console.log('🔄 开始加载管道配置，ID:', pipelineId)
+			const response = await api.pipeline.getConfig(pipelineId)
+			
+			if (response.success && response.data.components && response.data.components.length > 0) {
+				// 成功获取到配置且有组件数据
+				console.log('✅ 管道配置加载成功:', {
+					pipeline_id: response.data.pipeline_id,
+					pipeline_name: response.data.pipeline_name,
+					components_count: response.data.components.length,
+					components: response.data.components
+				})
+				
+				// 设置组件数据
+				setComponentsData(response.data.components)
+				
+				// 解析并设置事件参数（如果有event_monitor组件）
+				const eventMonitorComponent = response.data.components.find((c: any) => c.type === 'event_monitor')
+				if (eventMonitorComponent && eventMonitorComponent.events_to_monitor) {
+					// 从组件数据中解析事件参数
+					const baseFields = [
+						"event_name",
+						"contract_address", 
+						"transaction_hash",
+						"block_number",
+						"log_index",
+						"timestamp",
+						"chain"
+					]
+					
+					// 这里简化处理，如果需要完整的事件参数解析，需要ABI数据
+					// 目前先使用基础字段 + 事件名称作为参数
+					const eventParams = [
+						...baseFields,
+						...eventMonitorComponent.events_to_monitor.map((event: string) => `args.${event}_data`)
+					]
+					
+					setEventParamsState(prev => ({
+						...prev,
+						step1: eventParams
+					}))
+					
+					console.log('📋 已设置事件参数:', eventParams)
+				}
+				
+				console.log('🎯 管道配置加载完成，组件数据已填充到全局状态')
+			} else {
+				// 404 或 components 为空的情况
+				console.log('📝 管道配置不存在或为空，清空组件数据')
+				setComponentsData([])
+				// 清空事件参数
+				setEventParamsState(prev => ({
+					...prev,
+					step1: []
+				}))
+			}
+		} catch (error) {
+			// 网络错误或其他错误，也设置为空数组
+			console.error('❌ 加载管道配置失败:', error)
+			setComponentsData([])
+			// 清空事件参数
+			setEventParamsState(prev => ({
+				...prev,
+				step1: []
+			}))
+		}
+	}
+
 	// AI suggestions
 	const applySuggestion = (id: string) => {
 		console.log('Applying suggestion:', id)
@@ -327,9 +417,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 		currentChainId,
 		currentProtocolId,
 		currentColumnId,
+		currentPipelineId,
 		createChain,
 		deleteChain,
 		setCurrentChain,
+		setCurrentProtocolId,
 		createColumn,
 		deleteColumn,
 		setCurrentColumn,
@@ -344,8 +436,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 		updateComponent,
 		setComponents: setComponentsData,
 		setEventParams,
+		setCurrentPipeline,
+		loadPipelineConfig,
 		applySuggestion,
-	}), [chains, columns, components, eventParams, currentChainId, currentProtocolId, currentColumnId])
+	}), [chains, columns, components, eventParams, currentChainId, currentProtocolId, currentColumnId, currentPipelineId])
 
 	return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>
 }

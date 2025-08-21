@@ -131,6 +131,54 @@ export interface PipelineTreeResponse {
 	data: PipelineTreeNode[]
 }
 
+// Pipeline Create 相关类型
+export interface PipelineCreateRequest {
+	classification_id: number
+	name: string
+	description: string
+}
+
+export interface PipelineCreateResponse {
+	success: boolean
+	message: string
+	data: {
+		pipeline_id: number
+		name: string
+		description: string
+		classification_id: number
+		create_time: string
+	}
+}
+
+// Pipeline Config 相关类型
+export interface PipelineConfigData {
+	pipeline_id: number
+	pipeline_name: string
+	description: string
+	create_time: string
+	update_time: string
+	components: any[]  // 使用 any[] 类型，保持灵活性
+}
+
+export interface PipelineConfigResponse {
+	success: boolean
+	message: string
+	data: PipelineConfigData
+}
+
+// Pipeline Save Config 相关类型
+export interface PipelineSaveConfigRequest {
+	pipeline_id: number
+	pipeline_info: string
+}
+
+export interface PipelineSaveConfigResponse {
+	success: boolean
+	message: string
+	pipeline_id: number
+	components_created: number
+}
+
 // API函数
 export const fieldParsingAPI = {
 	// 解析字段映射
@@ -464,6 +512,133 @@ export const pipelineAPI = {
 			return await response.json()
 		} catch (error) {
 			console.error('Pipeline tree request failed:', error)
+			throw error
+		}
+	},
+	
+	// 创建管道
+	create: async (request: PipelineCreateRequest): Promise<PipelineCreateResponse> => {
+		const url = 'http://localhost:8001/api/v1/pipeline/create'
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(request),
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			return await response.json()
+		} catch (error) {
+			console.error('Pipeline create request failed:', error)
+			throw error
+		}
+	},
+	
+	// 获取管道配置
+	getConfig: async (pipelineId: number): Promise<PipelineConfigResponse> => {
+		const url = `http://localhost:8001/api/v1/pipeline/config/${pipelineId}`
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				if (response.status === 404) {
+					// 404 情况下返回特殊标识，表示管道配置不存在
+					console.log(`Pipeline ${pipelineId} config not found (404)`)
+					return {
+						success: false,
+						message: 'Pipeline configuration not found',
+						data: {
+							pipeline_id: pipelineId,
+							pipeline_name: '',
+							description: '',
+							create_time: '',
+							update_time: '',
+							components: []
+						}
+					}
+				}
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline ${pipelineId} config loaded:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline config request failed:', error)
+			// 网络错误等情况，返回空配置而不是抛出异常
+			return {
+				success: false,
+				message: `Failed to load pipeline config: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				data: {
+					pipeline_id: pipelineId,
+					pipeline_name: '',
+					description: '',
+					create_time: '',
+					update_time: '',
+					components: []
+				}
+			}
+		}
+	},
+	
+	// 保存管道配置
+	saveConfig: async (request: PipelineSaveConfigRequest): Promise<PipelineSaveConfigResponse> => {
+		const url = 'http://localhost:8001/api/v1/pipeline/config'
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(request),
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline config saved successfully:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline config save failed:', error)
 			throw error
 		}
 	}
