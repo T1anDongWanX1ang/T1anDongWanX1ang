@@ -7,9 +7,9 @@ const steps = [
 	{ id: 1, name: 'Step 1: Define Data Plan', path: '/step-1' },
 	{ id: 2, name: 'Step 2: Field Mapping Rules', path: '/step-2' },
 	{ id: 3, name: 'Step 3: Kafka Producer', path: '/step-3' },
-	{ id: 4, name: 'Step 4: Mapping Validation', path: '/step-4' },
-	{ id: 5, name: 'Step 5: SQL Editor & Test Run', path: '/step-5' },
-	{ id: 6, name: 'Step 6: Data Ingestion', path: '/step-6' },
+	// { id: 4, name: 'Step 4: Mapping Validation', path: '/step-4' },
+	{ id: 5, name: 'Step 4: Upload Data Storage Configuration', path: '/step-4' },
+	{ id: 6, name: 'Step 5: Data Ingestion', path: '/step-5' },
 ]
 
 export default function RootLayout() {
