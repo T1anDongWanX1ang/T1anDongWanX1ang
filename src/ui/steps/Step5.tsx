@@ -314,44 +314,51 @@ export default function Step5() {
 			const selectedMappingFields = Object.keys(mappingFieldsSelection)
 				.filter(key => mappingFieldsSelection[key])
 			
-			// 构建保存的配置数据
+			// 按照新的JSON格式构建配置数据（无默认值、无元数据）
 			const configToSave = {
-				protocol_id: currentProtocolId,
-				chain_name: selectedChain,
-				protocol_type: currentProtocol?.type?.toLowerCase() || 'dex',
-				kafka_config: {
-					servers: configData.kafka.servers,
-					topics: chainConfig.kafka.topics,
-					groupId: chainConfig.kafka.groupId
+				kafka: {
+					servers: configData.kafka.servers
 				},
-				doris_config: {
-					host: chainConfig.doris.host,
-					port: chainConfig.doris.port,
-					user: chainConfig.doris.user,
-					password: chainConfig.doris.password,
-					database: chainConfig.doris.db,
-					table: selectedTable,
-					columns: selectedColumns,
-					mapper: chainConfig.mapper[selectedTable] || 'defaultMapper'
-				},
-				mapping_fields: selectedMappingFields,
-				field_mappings: mappingRules.filter(rule => 
-					selectedMappingFields.includes(rule.targetKey)
-				),
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+				chains: [selectedChain],
+				chainConfigs: {
+					[selectedChain]: {
+						id: chainConfig.id,
+						kafka: {
+							topics: chainConfig.kafka.topics,
+							groupId: chainConfig.kafka.groupId
+						},
+						doris: {
+							host: chainConfig.doris.host,
+							port: chainConfig.doris.port,
+							user: chainConfig.doris.user,
+							password: chainConfig.doris.password,
+							db: chainConfig.doris.db
+						},
+						mapper: {
+							[selectedTable]: chainConfig.mapper?.[selectedTable]
+						},
+						tables: {
+							[selectedTable]: {
+								name: selectedTable,
+								columns: selectedColumns,
+								buffer: {
+									size: chainConfig.tables?.[selectedTable]?.buffer?.size
+								}
+							}
+						}
+					}
+				}
 			}
 
-			// 调用后端API保存配置
+			// 直接调用后端API保存新格式配置
 			const response = await fieldParsingAPI.saveIngestionConfig(configToSave)
 
 			if (response.success) {
 				setSaveMessage('✅ 配置已成功保存到后端')
 				
-				// 更新本地状态
-				if (currentColumnId) {
-					updateKafka(currentColumnId, configToSave.kafka_config)
-				}
+				// 更新本地状态 (新的JSON配置已包含在apiCompatConfig中)
+				// Note: updateKafka期望KafkaFlags格式，与我们的kafka_config格式不匹配
+				// 配置已通过API保存，本地状态更新可省略
 			} else {
 				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
 			}

@@ -4,7 +4,7 @@
 export const ENV_CONFIG = {
 	// 开发环境 - 本地开发
 	development: {
-		apiBaseUrl: 'http://192.168.50.94:8001',
+		apiBaseUrl: 'http://localhost:8001',
 		apiTimeout: 30000,
 		apiRetryAttempts: 3,
 		enableDebug: true,
