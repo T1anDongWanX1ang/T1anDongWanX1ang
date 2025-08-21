@@ -314,32 +314,38 @@ export default function Step5() {
 			const selectedMappingFields = Object.keys(mappingFieldsSelection)
 				.filter(key => mappingFieldsSelection[key])
 
-			// 构建保存的配置数据
+			// 构建完整的JSON配置数据
 			const configToSave = {
-				column_id: currentColumnId || 'default-column',
-				chain_name: selectedChain,
-				protocol_type: 'pipeline',
-				kafka_config: {
-					servers: configData.kafka.servers,
-					topics: chainConfig.kafka.topics,
-					groupId: chainConfig.kafka.groupId
+				kafka: {
+					servers: configData.kafka.servers
 				},
-				doris_config: {
-					host: chainConfig.doris.host,
-					port: chainConfig.doris.port,
-					user: chainConfig.doris.user,
-					password: chainConfig.doris.password,
-					database: chainConfig.doris.db,
-					table: selectedTable,
-					columns: selectedColumns,
-					mapper: chainConfig.mapper[selectedTable] || 'defaultMapper'
-				},
-				mapping_fields: selectedMappingFields,
-				field_mappings: mappingRules.filter(rule =>
-					selectedMappingFields.includes(rule.targetKey)
-				),
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
+				chains: [selectedChain],
+				chainConfigs: {
+					[selectedChain]: {
+						id: chainConfig.id || 1,
+						kafka: {
+							topics: chainConfig.kafka.topics,
+							groupId: chainConfig.kafka.groupId
+						},
+						doris: {
+							host: chainConfig.doris.host,
+							port: chainConfig.doris.port,
+							user: chainConfig.doris.user,
+							password: chainConfig.doris.password,
+							db: chainConfig.doris.db
+						},
+						mapper: chainConfig.mapper || {},
+						tables: {
+							[selectedTable]: {
+								name: selectedTable,
+								columns: selectedColumns,
+								buffer: {
+									size: chainConfig.tables?.[selectedTable]?.buffer?.size || 1024
+								}
+							}
+						}
+					}
+				}
 			}
 
 			// 调用后端API保存配置

@@ -47,6 +47,53 @@ async function apiRequest<T>(
 	}
 }
 
+
+async function apiRequest1<T>(
+	endpoint: string,
+	options: RequestInit = {},
+	retryCount = 0
+): Promise<T> {
+	const url = `http://localhost:8001${endpoint}`
+	
+	const defaultOptions: RequestInit = {
+		headers: {
+			...DEFAULT_HEADERS,
+			...options.headers,
+		},
+		...options,
+	}
+
+	try {
+		const controller = new AbortController()
+		const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+		
+		const response = await fetch(url, {
+			...defaultOptions,
+			signal: controller.signal
+		})
+		
+		clearTimeout(timeoutId)
+		
+		if (!response.ok) {
+			const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+			throw new Error(errorMessage)
+		}
+		
+		return await response.json()
+	} catch (error) {
+		console.error('API request failed:', error)
+		
+		// 重试逻辑
+		if (retryCount < currentApiConfig.retryAttempts && error instanceof Error && error.name !== 'AbortError') {
+			console.log(`Retrying request (${retryCount + 1}/${currentApiConfig.retryAttempts})...`)
+			await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // 指数退避
+			return apiRequest<T>(endpoint, options, retryCount + 1)
+		}
+		
+		throw error
+	}
+}
+
 // 字段解析相关API
 export interface FieldParsingRequest {
 	chain_name: string
@@ -413,7 +460,7 @@ export const fieldParsingAPI = {
 			}
 		}
 	}): Promise<{success: boolean, data: {message: string}}> => {
-		return apiRequest(API_ENDPOINTS.fieldParsing.saveIngestionConfig, {
+		return apiRequest1(API_ENDPOINTS.fieldParsing.saveIngestionConfig, {
 			method: 'POST',
 			body: JSON.stringify(config),
 		})
