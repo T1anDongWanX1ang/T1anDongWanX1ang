@@ -52,8 +52,8 @@ export default function Step6() {
 		fetchPipelineTree()
 	}, [currentPipelineId])
 
-	// 完成配置 - 调用config接口
-	const handleCompleteConfiguration = async () => {
+	// 保存解析任务 - 执行完整配置保存
+	const handleSaveParseTask = async () => {
 		if (!currentPipelineId) {
 			setSaveMessage('❌ 请先选择一个管道')
 			return
@@ -149,6 +149,62 @@ export default function Step6() {
 		}
 	}
 
+	// 启动解析任务
+	const handleStartParseTask = async () => {
+		console.log('🚀 启动解析任务...')
+		const parseComponents = components.filter(component => 
+			component.type === 'event_monitor' || 
+			component.type === 'dict_mapper' || 
+			component.type === 'kafka_producer'
+		)
+		
+		if (parseComponents.length === 0) {
+			setSaveMessage('❌ 没有可启动的解析任务组件')
+			return
+		}
+		
+		setSaveMessage(`🚀 解析任务已启动！共 ${parseComponents.length} 个组件`)
+		console.log('📊 启动解析任务组件:', parseComponents)
+	}
+
+	// 保存FLINK任务
+	const handleSaveFlinkTask = async () => {
+		console.log('🔄 保存FLINK任务...')
+		const flinkComponents = components.filter(component => 
+			component.type !== 'event_monitor' && 
+			component.type !== 'dict_mapper' && 
+			component.type !== 'kafka_producer'
+		)
+		
+		if (flinkComponents.length === 0) {
+			setSaveMessage('❌ 没有可保存的FLINK任务组件')
+			return
+		}
+		
+		setSaveMessage(`✅ FLINK任务已保存！共 ${flinkComponents.length} 个组件`)
+		console.log('⚡ FLINK任务组件:', flinkComponents)
+	}
+
+	// 启动FLINK任务
+	const handleStartFlinkTask = async () => {
+		console.log('🚀 启动FLINK任务...')
+		const flinkComponents = components.filter(component => 
+			component.type !== 'event_monitor' && 
+			component.type !== 'dict_mapper' && 
+			component.type !== 'kafka_producer'
+		)
+		
+		if (flinkComponents.length === 0) {
+			setSaveMessage('❌ 没有可启动的FLINK任务组件')
+			return
+		}
+		
+		setSaveMessage(`🚀 FLINK任务已启动！共 ${flinkComponents.length} 个组件`)
+		console.log('⚡ 启动FLINK任务组件:', flinkComponents)
+	}
+
+
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -194,25 +250,129 @@ export default function Step6() {
 						</div>
 					</div>
 
-					<div className="mt-6">
-						<h4 className="text-lg font-medium text-gray-800 mb-3">已配置的组件:</h4>
-						<div className="space-y-2">
-							{components.map((component, index) => (
-								<div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-									<div className="flex items-center gap-3">
-										<span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
-											{index + 1}
-										</span>
-										<div>
-											<div className="font-medium text-gray-800">{component.name}</div>
-											<div className="text-sm text-gray-600">{component.type}</div>
-										</div>
-									</div>
-									<span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-										已配置
-									</span>
+					<div className="mt-6 space-y-6">
+						{/* 已配置解析任务的组件 (Step1, Step2, Step3) */}
+						<div>
+							<div className="flex items-center justify-between mb-3">
+								<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
+									<span className="text-blue-600">📊</span>
+									已配置解析任务的组件:
+								</h4>
+								<div className="flex gap-2">
+									<button 
+										className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										onClick={() => handleSaveParseTask()}
+										disabled={isLoading || !currentPipelineId}
+									>
+										{isLoading ? '保存中...' : 'Save'}
+									</button>
+									<button 
+										className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+										onClick={() => handleStartParseTask()}
+									>
+										Start
+									</button>
 								</div>
-							))}
+							</div>
+							<div className="space-y-2">
+								{components
+									.filter(component => 
+										component.type === 'event_monitor' || 
+										component.type === 'dict_mapper' || 
+										component.type === 'kafka_producer'
+									)
+									.map((component, index) => (
+									<div key={`parse-${index}`} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+										<div className="flex items-center gap-3">
+											<span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium">
+												{index + 1}
+											</span>
+											<div>
+												<div className="font-medium text-gray-800">{component.name}</div>
+												<div className="text-sm text-blue-600">
+													{component.type === 'event_monitor' && '事件监控器 (Step1)'}
+													{component.type === 'dict_mapper' && '字段映射 (Step2)'}
+													{component.type === 'kafka_producer' && 'Kafka生产者 (Step3)'}
+												</div>
+											</div>
+										</div>
+										<span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+											解析任务
+										</span>
+									</div>
+								))}
+								{components.filter(component => 
+									component.type === 'event_monitor' || 
+									component.type === 'dict_mapper' || 
+									component.type === 'kafka_producer'
+								).length === 0 && (
+									<div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-center">
+										暂无已配置的解析任务组件
+									</div>
+								)}
+							</div>
+						</div>
+
+						{/* 已配置FLINK任务的组件 (其他步骤) */}
+						<div>
+							<div className="flex items-center justify-between mb-3">
+								<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
+									<span className="text-green-600">⚡</span>
+									已配置FLINK任务的组件:
+								</h4>
+								<div className="flex gap-2">
+									<button 
+										className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+										onClick={() => handleSaveFlinkTask()}
+									>
+										Save
+									</button>
+									<button 
+										className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+										onClick={() => handleStartFlinkTask()}
+									>
+										Start
+									</button>
+								</div>
+							</div>
+							<div className="space-y-2">
+								{components
+									.filter(component => 
+										component.type !== 'event_monitor' && 
+										component.type !== 'dict_mapper' && 
+										component.type !== 'kafka_producer'
+									)
+									.map((component, index) => (
+									<div key={`flink-${index}`} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+										<div className="flex items-center gap-3">
+											<span className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
+												{index + 1}
+											</span>
+											<div>
+												<div className="font-medium text-gray-800">{component.name}</div>
+												<div className="text-sm text-green-600">
+													{component.type === 'contract_caller' && '合约调用器'}
+													{component.type === 'data_processor' && '数据处理器'}
+													{component.type === 'stream_processor' && '流处理器'}
+													{component.type || '其他组件'}
+												</div>
+											</div>
+										</div>
+										<span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+											FLINK任务
+										</span>
+									</div>
+								))}
+								{components.filter(component => 
+									component.type !== 'event_monitor' && 
+									component.type !== 'dict_mapper' && 
+									component.type !== 'kafka_producer'
+								).length === 0 && (
+									<div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-center">
+										暂无已配置的FLINK任务组件
+									</div>
+								)}
+							</div>
 						</div>
 					</div>
 				</div>
@@ -260,13 +420,6 @@ export default function Step6() {
 				<Link to="/step-5" className="btn btn-secondary">
 					Back to Step 5
 				</Link>
-				<button 
-					className="btn"
-					onClick={handleCompleteConfiguration}
-					disabled={isLoading || !currentPipelineId}
-				>
-					{isLoading ? '保存中...' : 'Complete Configuration'}
-				</button>
 			</div>
 		</div>
 	)
