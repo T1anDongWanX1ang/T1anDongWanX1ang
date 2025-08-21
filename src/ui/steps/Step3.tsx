@@ -1,475 +1,364 @@
 import Box from '../components/Box'
 import { Link } from 'react-router-dom'
-import { useAppState } from '../../state/AppState'
-import { useState, useRef } from 'react'
-import { fieldParsingAPI } from '../../services/api'
+import { useAppState, KafkaProducer } from '../../state/AppState'
+import { useState, useEffect } from 'react'
 
 export default function Step3() {
-	const { currentProtocolId, protocols } = useAppState()
+	const { components, updateComponent, currentPipelineId } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
-	const [validationResults, setValidationResults] = useState<{
-		logs: { valid: boolean; errors: string[]; warnings: string[]; message: string } | null
-		mapping: { valid: boolean; errors: string[]; warnings: string[]; message: string } | null
-		overall: { valid: boolean; score: number; message: string } | null
-	}>({
-		logs: null,
-		mapping: null,
-		overall: null
-	})
-	const [logFile, setLogFile] = useState<File | null>(null)
-	const [logContent, setLogContent] = useState('')
-	const [showLogPreview, setShowLogPreview] = useState(false)
-	const [validationMode, setValidationMode] = useState<'auto' | 'manual'>('auto')
-	const [customLogData, setCustomLogData] = useState('')
-	const fileInputRef = useRef<HTMLInputElement>(null)
-	
-	const currentProtocol = protocols.find(p => p.id === currentProtocolId)
-	const mappingRules = currentProtocol?.mappingRules || []
+	const [validationMessage, setValidationMessage] = useState('')
+	const [bootstrapServers, setBootstrapServers] = useState('')
+	const [topic, setTopic] = useState('')
+	const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
 
-	// 处理日志文件上传
-	const handleLogFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0]
-		if (!file) return
-
-		setIsLoading(true)
-		try {
-			const content = await file.text()
-			setLogFile(file)
-			setLogContent(content)
-			setValidationResults(prev => ({ ...prev, logs: null, mapping: null, overall: null }))
-		} catch (error) {
-			console.error('Log file read failed:', error)
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 验证日志格式
-	const validateLogFormat = async () => {
-		if (!logContent.trim() && !customLogData.trim()) {
-			setValidationResults(prev => ({
-				...prev,
-				logs: { valid: false, errors: ['请提供日志内容'], warnings: [], message: '日志内容为空' }
-			}))
+	// 从全局 components 中恢复数据
+	useEffect(() => {
+		if (!currentPipelineId) {
+			// 没有选中管道时，清空表单
+			setBootstrapServers('')
+			setTopic('')
+			setValidationMessage('')
+			setConnectionStatus('idle')
 			return
 		}
 
+		// 从全局 components 中查找 kafka_producer 类型的组件
+		const kafkaProducerComponent = components.find((c: any) => c.type === 'kafka_producer')
+		
+		if (kafkaProducerComponent) {
+			console.log('🔄 从全局 components 恢复 Step3 数据:', kafkaProducerComponent)
+			
+			// 恢复表单数据
+			setBootstrapServers(kafkaProducerComponent.bootstrap_servers || '')
+			setTopic(kafkaProducerComponent.topic || '')
+			
+			setValidationMessage(`✅ 已从管道 ${currentPipelineId} 自动加载Kafka配置\nBootstrap Servers: ${kafkaProducerComponent.bootstrap_servers || 'N/A'}\nTopic: ${kafkaProducerComponent.topic || 'N/A'}`)
+			
+			setTimeout(() => {
+				setValidationMessage('')
+			}, 8000)
+		} else {
+			// 没有找到对应组件，清空表单
+			setBootstrapServers('')
+			setTopic('')
+			
+			if (components.length === 0) {
+				setValidationMessage('📝 当前管道暂无配置数据，请开始配置')
+			} else {
+				setValidationMessage('📝 当前管道没有Kafka Producer组件，请开始配置')
+			}
+			
+			setTimeout(() => {
+				setValidationMessage('')
+			}, 3000)
+		}
+	}, [components, currentPipelineId])
+
+	// 验证表单数据
+	const validateForm = () => {
+		if (!bootstrapServers.trim()) {
+			setValidationMessage('❌ 请输入Bootstrap Servers')
+			return false
+		}
+		
+		if (!topic.trim()) {
+			setValidationMessage('❌ 请输入Topic名称')
+			return false
+		}
+		
+		// 验证Bootstrap Servers格式（简单验证）
+		const serverPattern = /^[a-zA-Z0-9.-]+:\d+$/
+		const servers = bootstrapServers.split(',').map(s => s.trim())
+		const invalidServers = servers.filter(server => !serverPattern.test(server))
+		
+		if (invalidServers.length > 0) {
+			setValidationMessage(`❌ Bootstrap Servers格式错误: ${invalidServers.join(', ')}\n正确格式: host:port 或 host1:port1,host2:port2`)
+			return false
+		}
+		
+		// 验证Topic名称格式（简单验证）
+		const topicPattern = /^[a-zA-Z0-9._-]+$/
+		if (!topicPattern.test(topic)) {
+			setValidationMessage('❌ Topic名称格式错误，只能包含字母、数字、点、下划线和连字符')
+			return false
+		}
+		
+		return true
+	}
+
+	// 测试Kafka连接
+	const testKafkaConnection = async () => {
+		if (!validateForm()) return
+		
+		setConnectionStatus('testing')
 		setIsLoading(true)
+		
 		try {
-			const logData = logContent.trim() || customLogData.trim()
+			// 这里可以调用实际的Kafka连接测试API
+			// const response = await api.kafka.testConnection({
+			//     bootstrap_servers: bootstrapServers,
+			//     topic: topic
+			// })
 			
-			// 调用后端API验证日志格式
-			const response = await fieldParsingAPI.validateLogs(logData)
+			// 模拟API调用
+			await new Promise(resolve => setTimeout(resolve, 2000))
 			
-			setValidationResults(prev => ({
-				...prev,
-				logs: {
-					valid: response.success && response.data.valid,
-					errors: response.data.errors || [],
-					warnings: response.data.warnings || [],
-					message: response.data.message || '日志验证完成'
-				}
-			}))
+			// 模拟成功响应
+			setConnectionStatus('success')
+			setValidationMessage('✅ Kafka连接测试成功！')
+			
+			setTimeout(() => {
+				setValidationMessage('')
+				setConnectionStatus('idle')
+			}, 3000)
 		} catch (error) {
-			console.error('Log validation failed:', error)
-			setValidationResults(prev => ({
-				...prev,
-				logs: { valid: false, errors: ['日志验证失败'], warnings: [], message: '网络错误或服务异常' }
-			}))
+			console.error('Kafka connection test failed:', error)
+			setConnectionStatus('error')
+			setValidationMessage('❌ Kafka连接测试失败，请检查配置')
+			
+			setTimeout(() => {
+				setValidationMessage('')
+				setConnectionStatus('idle')
+			}, 5000)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 验证字段映射
-	const validateFieldMapping = async () => {
-		if (mappingRules.length === 0) {
-			setValidationResults(prev => ({
-				...prev,
-				mapping: { valid: false, errors: ['没有可验证的字段映射规则'], warnings: [], message: '请先在Step2中配置字段映射' }
-			}))
+	// 保存Kafka Producer配置
+	const handleSaveKafkaConfig = async (event?: React.MouseEvent) => {
+		if (!validateForm()) {
+			// 如果验证失败且是从Link点击触发的，阻止跳转
+			if (event) {
+				event.preventDefault()
+			}
 			return
 		}
-
+		
 		setIsLoading(true)
 		try {
-			// 调用后端API验证字段映射
-			const response = await fieldParsingAPI.validateMapping(mappingRules.map(rule => ({
-				source_key: rule.sourceKey,
-				target_key: rule.targetKey,
-				transformer: rule.transformer
-			})))
+			// 组装 KafkaProducer 数据
+			const kafkaProducerComponent: KafkaProducer = {
+				name: "step3",
+				type: "kafka_producer",
+				bootstrap_servers: bootstrapServers.trim(),
+				topic: topic.trim()
+			}
 			
-			setValidationResults(prev => ({
-				...prev,
-				mapping: {
-					valid: response.success && response.data.valid,
-					errors: response.data.errors || [],
-					warnings: response.data.warnings || [],
-					message: response.data.message || '字段映射验证完成'
-				}
-			}))
+			// 根据 name 更新或添加 KafkaProducer 到全局 components
+			updateComponent("step3", kafkaProducerComponent)
+			
+			// 检查是否是更新还是新增
+			const existingComponent = components.find(c => c.name === "step3")
+			const action = existingComponent ? "更新" : "添加"
+			
+			setValidationMessage(`✅ Kafka Producer配置保存成功！\n已${action}到全局组件列表\nBootstrap Servers: ${bootstrapServers.trim()}\nTopic: ${topic.trim()}`)
+			
+			// 调试信息：显示当前 components 状态
+			console.log('🎯 Step3 保存成功!')
+			console.log('当前 components 列表:', components)
+			console.log(`${action}的 KafkaProducer:`, kafkaProducerComponent)
+			console.log('📋 全局components中的kafka_producer:', components.find(c => c.type === 'kafka_producer'))
+			
+			// 延迟跳转到下一步
+			setTimeout(() => {
+				// 这里可以添加跳转逻辑
+			}, 1500)
 		} catch (error) {
-			console.error('Field mapping validation failed:', error)
-			setValidationResults(prev => ({
-				...prev,
-				mapping: { valid: false, errors: ['字段映射验证失败'], warnings: [], message: '网络错误或服务异常' }
-			}))
+			setValidationMessage('❌ 保存失败，请重试')
+			// 如果保存失败且是从Link点击触发的，阻止跳转
+			if (event) {
+				event.preventDefault()
+			}
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 运行完整验证
-	const runFullValidation = async () => {
-		setIsLoading(true)
-		setValidationResults(prev => ({ ...prev, overall: null }))
+	// 清空表单
+	const handleClearForm = () => {
+		setBootstrapServers('')
+		setTopic('')
+		setValidationMessage('')
+		setConnectionStatus('idle')
+	}
 
-		try {
-			// 并行运行日志验证和字段映射验证
-			const [logValidation, mappingValidation] = await Promise.allSettled([
-				logContent.trim() || customLogData.trim() ? validateLogFormat() : Promise.resolve(),
-				mappingRules.length > 0 ? validateFieldMapping() : Promise.resolve()
-			])
-
-			// 计算整体验证结果
-			const logsValid = validationResults.logs?.valid ?? true
-			const mappingValid = validationResults.mapping?.valid ?? true
-			const overallValid = logsValid && mappingValid
-			
-			let score = 0
-			if (logsValid) score += 50
-			if (mappingValid) score += 50
-			
-			// 如果有错误，减少分数
-			const totalErrors = (validationResults.logs?.errors?.length || 0) + (validationResults.mapping?.errors?.length || 0)
-			score = Math.max(0, score - totalErrors * 5)
-
-			setValidationResults(prev => ({
-				...prev,
-				overall: {
-					valid: overallValid,
-					score,
-					message: overallValid ? '所有验证通过' : '存在验证问题，请检查详情'
-				}
-			}))
-		} catch (error) {
-			console.error('Full validation failed:', error)
-			setValidationResults(prev => ({
-				...prev,
-				overall: { valid: false, score: 0, message: '验证过程发生错误' }
-			}))
-		} finally {
-			setIsLoading(false)
+	// 获取连接状态颜色
+	const getConnectionStatusColor = () => {
+		switch (connectionStatus) {
+			case 'testing': return 'text-blue-600'
+			case 'success': return 'text-green-600'
+			case 'error': return 'text-red-600'
+			default: return 'text-gray-600'
 		}
 	}
 
-	// 清除验证结果
-	const clearValidationResults = () => {
-		setValidationResults({
-			logs: null,
-			mapping: null,
-			overall: null
-		})
-		setLogFile(null)
-		setLogContent('')
-		setCustomLogData('')
-	}
-
-	// 生成验证报告
-	const generateValidationReport = () => {
-		const report = {
-			protocol: currentProtocol?.name || 'Unknown',
-			chain: currentProtocol?.chain || 'Unknown',
-			timestamp: new Date().toISOString(),
-			validation_results: validationResults,
-			mapping_rules_count: mappingRules.length,
-			recommendations: []
+	// 获取连接状态图标
+	const getConnectionStatusIcon = () => {
+		switch (connectionStatus) {
+			case 'testing': return '🔄'
+			case 'success': return '✅'
+			case 'error': return '❌'
+			default: return '🔌'
 		}
-
-		// 添加建议
-		if (validationResults.logs?.errors?.length) {
-			report.recommendations.push('检查日志格式是否符合预期结构')
-		}
-		if (validationResults.mapping?.errors?.length) {
-			report.recommendations.push('检查字段映射规则的配置')
-		}
-		if (validationResults.overall?.score < 80) {
-			report.recommendations.push('建议优化配置以提高验证分数')
-		}
-
-		// 下载报告
-		const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = `validation-report-${currentProtocol?.name}-${new Date().toISOString().split('T')[0]}.json`
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		URL.revokeObjectURL(url)
-	}
-
-	// 获取验证状态颜色
-	const getStatusColor = (valid: boolean | null) => {
-		if (valid === null) return 'text-gray-500'
-		return valid ? 'text-green-600' : 'text-red-600'
-	}
-
-	// 获取验证状态图标
-	const getStatusIcon = (valid: boolean | null) => {
-		if (valid === null) return '⏳'
-		return valid ? '✅' : '❌'
 	}
 
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
-				<h2 className="text-lg font-semibold">Step 3: Mapping Validation</h2>
-				{currentProtocol && (
-					<div className="text-sm text-gray-600">
-						Protocol: {currentProtocol.name} ({currentProtocol.chain} • {currentProtocol.type})
-					</div>
-				)}
+				<h2 className="text-lg font-semibold">Step 3: Kafka Producer</h2>
+				<div className="text-sm text-gray-600">
+					Step 3: Kafka生产者配置
+				</div>
 			</div>
 
-			{/* 验证模式选择 */}
-			<Box title="Validation Mode">
-				<div className="space-y-4">
-					<div className="flex gap-4">
-						<label className="flex items-center space-x-2">
-							<input
-								type="radio"
-								value="auto"
-								checked={validationMode === 'auto'}
-								onChange={(e) => setValidationMode(e.target.value as 'auto' | 'manual')}
-								className="h-4 w-4 text-brand focus:ring-brand border-gray-300"
-							/>
-							<span>自动验证模式</span>
-						</label>
-						<label className="flex items-center space-x-2">
-							<input
-								type="radio"
-								value="manual"
-								checked={validationMode === 'manual'}
-								onChange={(e) => setValidationMode(e.target.value as 'auto' | 'manual')}
-								className="h-4 w-4 text-brand focus:ring-brand border-gray-300"
-							/>
-							<span>手动验证模式</span>
-						</label>
-					</div>
-					
-					<div className="text-sm text-gray-600">
-						{validationMode === 'auto' 
-							? '系统将自动验证日志格式和字段映射规则'
-							: '您可以手动上传日志文件或输入日志数据进行验证'
-						}
-					</div>
-				</div>
-			</Box>
-
-			{/* 日志数据输入 */}
-			<Box title="Log Data Input" right={
-				<div className="flex gap-2">
-					<button
-						className="btn btn-secondary"
-						onClick={() => setShowLogPreview(!showLogPreview)}
-					>
-						{showLogPreview ? '隐藏' : '预览'}日志
-					</button>
-					<button
-						className="btn btn-secondary"
-						onClick={clearValidationResults}
-						disabled={isLoading}
-					>
-						Clear
-					</button>
-				</div>
+			{/* Kafka配置 */}
+			<Box title="Kafka Producer Configuration" right={
+				<button 
+					className="btn btn-secondary" 
+					onClick={handleClearForm}
+					disabled={isLoading}
+				>
+					Clear
+				</button>
 			}>
 				<div className="space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Upload Log File:
+							Bootstrap Servers *
 						</label>
-						<input
-							type="file"
-							className="input"
-							accept=".log,.txt,.json,.csv"
-							onChange={handleLogFileUpload}
-							ref={fileInputRef}
+						<input 
+							type="text" 
+							className="input w-full" 
+							placeholder="localhost:9092 或 broker1:9092,broker2:9092"
+							value={bootstrapServers}
+							onChange={(e) => setBootstrapServers(e.target.value)}
 						/>
 						<div className="mt-1 text-xs text-gray-500">
-							支持 .log, .txt, .json, .csv 格式
+							Kafka集群的Bootstrap服务器地址，多个地址用逗号分隔
 						</div>
 					</div>
 
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Or Input Custom Log Data:
+							Topic *
 						</label>
-						<textarea
-							className="input w-full h-32"
-							placeholder="输入日志数据或JSON格式的日志..."
-							value={customLogData}
-							onChange={(e) => setCustomLogData(e.target.value)}
+						<input 
+							type="text" 
+							className="input w-full" 
+							placeholder="my-topic"
+							value={topic}
+							onChange={(e) => setTopic(e.target.value)}
 						/>
+						<div className="mt-1 text-xs text-gray-500">
+							消息发送的目标Topic名称
+						</div>
 					</div>
 
-					{/* 日志预览 */}
-					{showLogPreview && (logContent || customLogData) && (
-						<div className="mt-4 p-3 bg-gray-50 rounded-lg">
-							<div className="text-sm font-medium text-gray-700 mb-2">日志预览:</div>
-							<pre className="text-xs text-gray-600 whitespace-pre-wrap max-h-40 overflow-y-auto">
-								{logContent || customLogData}
-							</pre>
-						</div>
-					)}
+					{/* 连接状态显示 */}
+					<div className="flex items-center gap-2">
+						<span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
+							{getConnectionStatusIcon()} 连接状态: 
+							{connectionStatus === 'idle' && ' 未测试'}
+							{connectionStatus === 'testing' && ' 测试中...'}
+							{connectionStatus === 'success' && ' 连接成功'}
+							{connectionStatus === 'error' && ' 连接失败'}
+						</span>
+					</div>
 				</div>
 			</Box>
 
-			{/* 验证操作 */}
-			<Box title="Validation Actions">
-				<div className="flex gap-3">
-					<button
+			{/* 连接测试 */}
+			<Box title="Connection Test">
+				<div className="space-y-4">
+					<div className="text-sm text-gray-600">
+						在保存配置前，建议先测试Kafka连接以确保配置正确
+					</div>
+					
+					<button 
 						className="btn btn-secondary"
-						onClick={validateLogFormat}
-						disabled={isLoading || (!logContent.trim() && !customLogData.trim())}
+						onClick={testKafkaConnection}
+						disabled={isLoading || !bootstrapServers.trim() || !topic.trim()}
 					>
-						{isLoading ? '验证中...' : '验证日志格式'}
-					</button>
-					<button
-						className="btn btn-secondary"
-						onClick={validateFieldMapping}
-						disabled={isLoading || mappingRules.length === 0}
-					>
-						{isLoading ? '验证中...' : '验证字段映射'}
-					</button>
-					<button
-						className="btn"
-						onClick={runFullValidation}
-						disabled={isLoading}
-					>
-						{isLoading ? '验证中...' : '运行完整验证'}
+						{connectionStatus === 'testing' ? '测试中...' : '测试连接'}
 					</button>
 				</div>
 			</Box>
 
-			{/* 验证结果 */}
-			{/* 日志验证结果 */}
-			{validationResults.logs && (
-				<Box title="Log Validation Results">
-					<div className="space-y-3">
-						<div className={`flex items-center space-x-2 text-lg ${getStatusColor(validationResults.logs.valid)}`}>
-							<span>{getStatusIcon(validationResults.logs.valid)}</span>
-							<span className="font-medium">{validationResults.logs.message}</span>
-						</div>
-						
-						{validationResults.logs.errors.length > 0 && (
-							<div className="space-y-2">
-								<div className="text-sm font-medium text-red-700">错误:</div>
-								<ul className="list-disc list-inside space-y-1 text-sm text-red-600">
-									{validationResults.logs.errors.map((error, index) => (
-										<li key={index}>{error}</li>
-									))}
-								</ul>
-							</div>
-						)}
-						
-						{validationResults.logs.warnings.length > 0 && (
-							<div className="space-y-2">
-								<div className="text-sm font-medium text-yellow-700">警告:</div>
-								<ul className="list-disc list-inside space-y-1 text-sm text-yellow-600">
-									{validationResults.logs.warnings.map((warning, index) => (
-										<li key={index}>{warning}</li>
-									))}
-								</ul>
-							</div>
-						)}
-					</div>
-				</Box>
-			)}
-
-			{/* 字段映射验证结果 */}
-			{validationResults.mapping && (
-				<Box title="Field Mapping Validation Results">
-					<div className="space-y-3">
-						<div className={`flex items-center space-x-2 text-lg ${getStatusColor(validationResults.mapping.valid)}`}>
-							<span>{getStatusIcon(validationResults.mapping.valid)}</span>
-							<span className="font-medium">{validationResults.mapping.message}</span>
-						</div>
-						
-						{validationResults.mapping.errors.length > 0 && (
-							<div className="space-y-2">
-								<div className="text-sm font-medium text-red-700">错误:</div>
-								<ul className="list-disc list-inside space-y-1 text-sm text-red-600">
-									{validationResults.mapping.errors.map((error, index) => (
-										<li key={index}>{error}</li>
-									))}
-								</ul>
-							</div>
-						)}
-						
-						{validationResults.mapping.warnings.length > 0 && (
-							<div className="space-y-2">
-								<div className="text-sm font-medium text-yellow-700">警告:</div>
-								<ul className="list-disc list-inside space-y-1 text-sm text-yellow-600">
-									{validationResults.mapping.warnings.map((warning, index) => (
-										<li key={index}>{warning}</li>
-									))}
-								</ul>
-							</div>
-						)}
-					</div>
-				</Box>
-			)}
-
-			{/* 整体验证结果 */}
-			{validationResults.overall && (
-				<Box title="Overall Validation Results">
-					<div className="space-y-4">
-						<div className={`flex items-center space-x-2 text-xl ${getStatusColor(validationResults.overall.valid)}`}>
-							<span>{getStatusIcon(validationResults.overall.valid)}</span>
-							<span className="font-bold">{validationResults.overall.message}</span>
-						</div>
-						
-						<div className="flex items-center space-x-4">
-							<div className="text-center">
-								<div className="text-2xl font-bold text-blue-600">{validationResults.overall.score}</div>
-								<div className="text-sm text-gray-600">验证分数</div>
-							</div>
-							<div className="text-center">
-								<div className="text-2xl font-bold text-green-600">{mappingRules.length}</div>
-								<div className="text-sm text-gray-600">映射规则</div>
-							</div>
-						</div>
-						
-						{validationResults.overall.score < 100 && (
-							<div className="p-3 bg-blue-50 rounded-lg">
-								<div className="text-sm font-medium text-blue-700 mb-2">改进建议:</div>
-								<ul className="list-disc list-inside space-y-1 text-sm text-blue-600">
-									{validationResults.overall.score < 80 && <li>检查并修复验证错误</li>}
-									{validationResults.overall.score < 90 && <li>优化字段映射配置</li>}
-									<li>确保日志格式符合预期</li>
-								</ul>
-							</div>
-						)}
-					</div>
-				</Box>
+			{/* 验证消息 */}
+			{validationMessage && (
+				<div className={`p-4 rounded-lg ${
+					validationMessage.includes('✅') ? 'bg-green-50 text-green-700' : 
+					validationMessage.includes('❌') ? 'bg-red-50 text-red-700' :
+					'bg-blue-50 text-blue-700'
+				}`}>
+					<pre className="whitespace-pre-wrap">{validationMessage}</pre>
+				</div>
 			)}
 
 			{/* 操作按钮 */}
 			<div className="flex gap-3">
-				<button
-					className="btn btn-secondary"
-					onClick={generateValidationReport}
-					disabled={!validationResults.overall}
+				<button 
+					className="btn" 
+					onClick={handleSaveKafkaConfig}
+					disabled={isLoading}
 				>
-					Generate Report
+					{isLoading ? '保存中...' : 'Save Kafka Config'}
 				</button>
-				<Link to="/step-4" className="btn">
+				<Link 
+					to="/step-4" 
+					className="btn btn-secondary"
+					onClick={handleSaveKafkaConfig}
+				>
 					Continue to Step 4
 				</Link>
 			</div>
+
+			{/* 配置预览 - 从 components 中获取数据 */}
+			{(() => {
+				const kafkaProducerComponent = components.find((c: any) => c.type === 'kafka_producer')
+				return kafkaProducerComponent && (
+					<Box title="Current Kafka Configuration" right={
+						<span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">
+							从管道 {currentPipelineId} 加载
+						</span>
+					}>
+						<div className="space-y-2">
+							{/* 组件名称 */}
+							<div className="flex items-center justify-between py-1 border-b border-gray-100">
+								<span className="text-sm font-medium text-gray-700">Component Name</span>
+								<span className="text-sm text-gray-900 font-medium">
+									{kafkaProducerComponent.name || '-'}
+								</span>
+							</div>
+
+							{/* 组件类型 */}
+							<div className="flex items-center justify-between py-1 border-b border-gray-100">
+								<span className="text-sm font-medium text-gray-700">Component Type</span>
+								<span className="text-sm text-gray-900 px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+									{kafkaProducerComponent.type || '-'}
+								</span>
+							</div>
+
+							{/* Bootstrap Servers */}
+							<div className="flex items-start justify-between py-1 border-b border-gray-100">
+								<span className="text-sm font-medium text-gray-700">Bootstrap Servers</span>
+								<span className="text-sm text-gray-900 font-mono bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
+									{kafkaProducerComponent.bootstrap_servers || '-'}
+								</span>
+							</div>
+
+							{/* Topic */}
+							<div className="flex items-start justify-between py-1">
+								<span className="text-sm font-medium text-gray-700">Topic</span>
+								<span className="text-sm text-gray-900 bg-gray-50 px-2 py-1 rounded max-w-xs break-all text-right">
+									{kafkaProducerComponent.topic || '-'}
+								</span>
+							</div>
+						</div>
+					</Box>
+				)
+			})()}
 		</div>
 	)
 }

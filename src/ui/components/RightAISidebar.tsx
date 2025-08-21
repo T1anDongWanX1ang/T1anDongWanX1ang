@@ -12,14 +12,12 @@ export default function RightAISidebar() {
 		currentProtocolId, 
 		currentColumnId,
 		chains, 
-		protocols, 
 		columns, 
-		selectedChain, 
-		selectedType 
+		components
 	} = useAppState()
 	
 	const currentChain = chains.find(c => c.id === currentChainId)
-	const currentProtocol = protocols.find(p => p.id === currentProtocolId)
+	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
 	const currentColumn = columns.find(c => c.id === currentColumnId)
 	
 	const suggestion = useMemo<Suggestion>(() => {
@@ -32,7 +30,7 @@ export default function RightAISidebar() {
 					{ text: 'List critical events (Transfer, Approval)', actionId: 'noop' },
 					{ text: 'Use consistent snake_case field names', actionId: 'noop' },
 					{ text: 'Infer token_decimals from ABI automatically', actionId: 'noop' },
-					{ text: `Current: ${selectedChain} ${selectedType} - Ready for configuration`, actionId: 'noop' },
+					{ text: 'Ready for configuration', actionId: 'noop' },
 					{ text: currentProtocol ? `Protocol: ${currentProtocol.name} - Data plan setup` : 'No protocol selected', actionId: 'noop' },
 				],
 			}
@@ -58,7 +56,7 @@ export default function RightAISidebar() {
 					{ text: 'Fix mismatched mapping fields', actionId: 'noop' },
 					{ text: 'Ensure log file includes all required columns', actionId: 'noop' },
 					{ text: 'Use decimals-aware conversion for value column', actionId: 'noop' },
-					{ text: currentProtocol ? `Validating ${currentProtocol.chain} ${currentProtocol.type} data` : 'No protocol selected', actionId: 'noop' },
+					{ text: currentProtocol ? `Validating ${currentProtocol.chain_name} event_monitor data` : 'No protocol selected', actionId: 'noop' },
 				],
 			}
 		}
@@ -89,7 +87,7 @@ export default function RightAISidebar() {
 				{ text: currentColumn ? `Deploying ${currentColumn.name} to production` : 'No column selected', actionId: 'noop' },
 			],
 		}
-	}, [pathname, currentProtocol, currentColumn, selectedChain, selectedType])
+	}, [pathname, currentProtocol, currentColumn])
 
 	return (
 		<aside className="h-full bg-white border-l border-gray-200 p-4 w-[320px]">
@@ -108,9 +106,9 @@ export default function RightAISidebar() {
 				{currentProtocol && (
 					<div className="p-2 bg-green-50 rounded text-xs border border-green-200">
 						<div className="font-medium text-green-700">Protocol: {currentProtocol.name}</div>
-						<div className="text-green-600">{currentProtocol.chain} • {currentProtocol.type}</div>
-						<div className="text-green-600">Status: {currentProtocol.status}</div>
-						<div className="text-green-600">Rules: {currentProtocol.mappingRules.length}</div>
+						<div className="text-green-600">{currentProtocol.chain_name} • {currentProtocol.type}</div>
+						<div className="text-green-600">Contract: {currentProtocol.contract_address?.slice(0, 10)}...</div>
+						<div className="text-green-600">Events: {currentProtocol.events_to_monitor?.length || 0}</div>
 					</div>
 				)}
 				
