@@ -325,15 +325,40 @@ export const fieldParsingAPI = {
 		})
 	},
 
-	// 保存摄入配置
+	// 保存摄入配置 (新JSON格式)
 	saveIngestionConfig: async (config: {
-		column_id: string
-		chain_name: string
-		protocol_type: string
-		kafka_config: any
-		doris_config: any
-		created_at: string
-		updated_at: string
+		kafka: {
+			servers: string
+		}
+		chains: string[]
+		chainConfigs: {
+			[chainName: string]: {
+				id?: number
+				kafka: {
+					topics?: string
+					groupId?: string
+				}
+				doris: {
+					host?: string
+					port?: string
+					user?: string
+					password?: string
+					db?: string
+				}
+				mapper: {
+					[tableName: string]: string | undefined
+				}
+				tables: {
+					[tableName: string]: {
+						name: string
+						columns: string[]
+						buffer: {
+							size?: number
+						}
+					}
+				}
+			}
+		}
 	}): Promise<{success: boolean, data: {message: string}}> => {
 		return apiRequest(API_ENDPOINTS.fieldParsing.saveIngestionConfig, {
 			method: 'POST',
