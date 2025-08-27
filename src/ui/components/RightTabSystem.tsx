@@ -6,7 +6,7 @@ import type { PipelineTreeNode, PipelineCreateRequest } from '../../services/api
 import Step1 from '../steps/Step1'
 import Step2 from '../steps/Step2'
 import Step3 from '../steps/Step3'
-import Step4 from '../steps/Step4'
+import Step5 from '../steps/Step5'
 import Step6 from '../steps/Step6'
 import StepNavigation from './StepNavigation'
 
@@ -489,7 +489,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 			case 'step3':
 				return <Step3 />
 			case 'step4':
-				return <Step4 />
+				return <Step5 />
 			case 'step5':
 				return <Step6 />
 			default:
