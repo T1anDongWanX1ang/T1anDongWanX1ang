@@ -25,7 +25,7 @@ export default function Step4() {
 	
 	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
 	const step2Component = components.find(c => c.name === "step2") // 从 components 获取 step2 数据
-	const mappingRules = step2Component?.mapping_rules || []
+	const eventMappings = step2Component?.dict_mappers || []
 
 	// 处理日志文件上传
 	const handleLogFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,7 +84,8 @@ export default function Step4() {
 
 	// 验证字段映射
 	const validateFieldMapping = async () => {
-		if (mappingRules.length === 0) {
+		const totalMappingRules = eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0)
+		if (totalMappingRules === 0) {
 			setValidationResults(prev => ({
 				...prev,
 				mapping: { valid: false, errors: ['没有可验证的字段映射规则'], warnings: [], message: '请先在Step2中配置字段映射' }
@@ -95,9 +96,11 @@ export default function Step4() {
 		setIsLoading(true)
 		try {
 			// 调用后端API验证字段映射
-			const response = await fieldParsingAPI.validateMapping(mappingRules.map(rule => ({
-				source_key: rule.sourceKey,
-				target_key: rule.targetKey,
+			// 将所有事件的映射规则合并为一个数组进行验证
+			const allMappingRules = eventMappings.flatMap(mapping => mapping.mapping_rules)
+			const response = await fieldParsingAPI.validateMapping(allMappingRules.map(rule => ({
+				source_key: rule.source_key,
+				target_key: rule.target_key,
 				transformer: rule.transformer
 			})))
 			
@@ -130,7 +133,7 @@ export default function Step4() {
 			// 并行运行日志验证和字段映射验证
 			const [logValidation, mappingValidation] = await Promise.allSettled([
 				logContent.trim() || customLogData.trim() ? validateLogFormat() : Promise.resolve(),
-				mappingRules.length > 0 ? validateFieldMapping() : Promise.resolve()
+				eventMappings.length > 0 ? validateFieldMapping() : Promise.resolve()
 			])
 
 			// 计算整体验证结果
@@ -184,7 +187,7 @@ export default function Step4() {
 			chain: currentProtocol?.chain || 'Unknown',
 			timestamp: new Date().toISOString(),
 			validation_results: validationResults,
-			mapping_rules_count: mappingRules.length,
+			mapping_rules_count: eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0),
 			recommendations: []
 		}
 
@@ -341,7 +344,7 @@ export default function Step4() {
 					<button
 						className="btn btn-secondary"
 						onClick={validateFieldMapping}
-						disabled={isLoading || mappingRules.length === 0}
+						disabled={isLoading || eventMappings.length === 0}
 					>
 						{isLoading ? '验证中...' : '验证字段映射'}
 					</button>
@@ -439,7 +442,7 @@ export default function Step4() {
 								<div className="text-sm text-gray-600">验证分数</div>
 							</div>
 							<div className="text-center">
-								<div className="text-2xl font-bold text-green-600">{mappingRules.length}</div>
+								<div className="text-2xl font-bold text-green-600">{eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0)}</div>
 								<div className="text-sm text-gray-600">映射规则</div>
 							</div>
 						</div>

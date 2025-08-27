@@ -179,7 +179,7 @@ export default function Step6() {
 						case 'dict_mapper':
 							return {
 								...baseComponent,
-								mapping_rules: component.mapping_rules || []
+								dict_mappers: component.dict_mappers || []
 							}
 						
 						case 'kafka_producer':

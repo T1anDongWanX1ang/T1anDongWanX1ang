@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAppState } from '../../state/AppState'
 
@@ -6,6 +6,8 @@ type Suggestion = { id: string; title: string; tips: Array<{ text: string; actio
 
 export default function RightAISidebar() {
 	const { pathname } = useLocation()
+	const [showModal, setShowModal] = useState(false)
+	const [isCollapsed, setIsCollapsed] = useState(true) // 默认收起
 	const { 
 		applySuggestion, 
 		currentChainId, 
@@ -90,8 +92,49 @@ export default function RightAISidebar() {
 	}, [pathname, currentProtocol, currentColumn])
 
 	return (
-		<aside className="h-full bg-white border-l border-gray-200 p-4 w-[320px]">
-			<h3 className="font-semibold text-gray-800">{suggestion.title}</h3>
+		<>
+			<aside className={`h-full bg-white border-l border-gray-200 transition-all duration-300 ${
+				isCollapsed ? 'w-12' : 'w-[320px]'
+			}`}>
+				{isCollapsed ? (
+					// 收起状态 - 只显示一个按钮
+					<div className="p-3">
+						<button
+							onClick={() => setIsCollapsed(false)}
+							className="w-full p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center"
+							title="展开AI建议"
+						>
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+							</svg>
+						</button>
+					</div>
+				) : (
+					// 展开状态 - 显示完整内容
+					<div className="p-4">
+						<div className="flex items-center justify-between mb-4">
+							<h3 className="font-semibold text-gray-800">{suggestion.title}</h3>
+							<div className="flex gap-1">
+								<button
+									onClick={() => setShowModal(true)}
+									className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+									title="展开AI建议详情"
+								>
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+									</svg>
+								</button>
+								<button
+									onClick={() => setIsCollapsed(true)}
+									className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+									title="收起AI建议"
+								>
+									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+									</svg>
+								</button>
+							</div>
+						</div>
 			
 			{/* Context Info */}
 			<div className="mt-2 space-y-2">
@@ -139,9 +182,76 @@ export default function RightAISidebar() {
 						)}
 						<p className="text-gray-700 leading-5">{tip.text}</p>
 					</li>
-				))}
-			</ul>
-		</aside>
+						))}
+					</ul>
+					</div>
+				)}
+			</aside>
+
+			{/* AI建议弹框 */}
+			{showModal && (
+				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+						{/* Modal Header */}
+						<div className="flex items-center justify-between p-4 border-b border-gray-200">
+							<h2 className="text-lg font-semibold text-gray-800">AI 智能建议</h2>
+							<button
+								onClick={() => setShowModal(false)}
+								className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+							>
+								<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+						</div>
+
+						{/* Modal Content */}
+						<div className="p-4 overflow-y-auto max-h-[60vh]">
+							<div className="space-y-4">
+								{suggestion.tips.map((tip, i) => (
+									<div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+										<div className="flex-shrink-0 mt-1">
+											{tip.actionId !== 'noop' ? (
+												<button 
+													onClick={() => {
+														applySuggestion(tip.actionId)
+														setShowModal(false)
+													}} 
+													className="px-3 py-1 bg-brand text-white text-xs rounded hover:bg-brand/90"
+												>
+													应用
+												</button>
+											) : (
+												<div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+													<svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+														<path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+													</svg>
+												</div>
+											)}
+										</div>
+										<div className="flex-1">
+											<p className="text-gray-700 text-sm leading-relaxed">{tip.text}</p>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Modal Footer */}
+						<div className="p-4 border-t border-gray-200 bg-gray-50">
+							<div className="flex justify-end">
+								<button
+									onClick={() => setShowModal(false)}
+									className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+								>
+									关闭
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+		</>
 	)
 }
 

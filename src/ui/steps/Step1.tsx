@@ -207,16 +207,17 @@ export default function Step1() {
 		return true
 	}
 
-	// 解析 ABI 事件参数
+	// 解析 ABI 事件参数 - 为每个事件单独解析
 	const parseEventParams = (abiContent: string, selectedEvents: string[]) => {
 		try {
 			const abiData = JSON.parse(abiContent)
 			const allParams = new Set<string>()
+			const eventParamsMap: Record<string, string[]> = {}
 			
 			// 添加基础字段
 			const baseFields = [
 				"event_name",
-				"contract_address", 
+				"contract_address",
 				"transaction_hash",
 				"block_number",
 				"log_index",
@@ -232,14 +233,28 @@ export default function Step1() {
 				)
 				
 				if (eventAbi && eventAbi.inputs) {
+					const eventParams: string[] = []
 					eventAbi.inputs.forEach((input: any) => {
 						if (input.name) {
 							// 将参数添加到 args 对象中
-							allParams.add(`args.${input.name}`)
+							const paramName = `args.${input.name}`
+							allParams.add(paramName)
+							eventParams.push(paramName)
 						}
 					})
+					// 为每个事件单独存储参数
+					eventParamsMap[eventName] = eventParams
+					console.log(`事件 ${eventName} 的参数:`, eventParams)
 				}
 			})
+			
+			// 将事件参数映射存储到全局状态（可以在 Step2 中使用）
+			if (Object.keys(eventParamsMap).length > 0) {
+				// 这里可以扩展 setEventParams 来支持事件级别的参数存储
+				console.log('所有事件参数映射:', eventParamsMap);
+				// 临时存储到 window 对象，供 Step2 使用
+				(window as any).eventParamsMap = eventParamsMap;
+			}
 			
 			return Array.from(allParams)
 		} catch (error) {
@@ -284,11 +299,11 @@ export default function Step1() {
 			
 			// 解析事件参数并存储到全局状态
 			if (abiContent && selectedEvents.length > 0) {
-				const eventParams = parseEventParams(abiContent, selectedEvents)
-				setEventParams("step1", eventParams)
+				const parsedEventParams = parseEventParams(abiContent, selectedEvents)
+				setEventParams("step1", parsedEventParams)
 				
 				// 调试信息：显示解析的参数
-				console.log('解析的事件参数:', eventParams)
+				console.log('解析的事件参数:', parsedEventParams)
 			}
 			
 			// 检查是否是更新还是新增
@@ -624,35 +639,79 @@ export default function Step1() {
 			})()}
 
 			{/* 事件参数预览 */}
-			{eventParams.step1 && eventParams.step1.length > 0 && (
+			{selectedEvents.length > 0 && (
 				<Box title="Event Parameters" right={
 					<span className="text-xs text-gray-500 bg-purple-100 px-2 py-1 rounded">
-						解析的参数 ({eventParams.step1.length}个)
+						{selectedEvents.length} 个事件的参数
 					</span>
 				}>
-					<div className="space-y-2">
+					<div className="space-y-4">
 						<div className="text-sm text-gray-600 mb-3">
-							根据选中事件解析出的所有参数字段：
+							所有选中事件的字段参数（包括公共字段和事件特定参数）：
 						</div>
-						<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-							{eventParams.step1.map((param, index) => (
-								<div
-									key={index}
-									className={`px-3 py-2 rounded-lg text-sm font-mono ${
-										param.startsWith('args.') 
-											? 'bg-blue-50 text-blue-800 border border-blue-200' 
-											: 'bg-gray-50 text-gray-800 border border-gray-200'
-									}`}
-								>
-									{param}
+
+						{/* 公共字段 */}
+						<div className="mb-4">
+							<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+								<span>🔗 公共字段</span>
+								<span className="text-xs text-gray-500">(所有事件共有)</span>
+							</div>
+							<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+								{[
+									"event_name",
+									"contract_address",
+									"transaction_hash",
+									"block_number",
+									"log_index",
+									"timestamp",
+									"chain"
+								].map((field, index) => (
+									<div
+										key={`common-${index}`}
+										className="px-3 py-2 rounded-lg text-sm font-mono bg-green-50 text-green-800 border border-green-200"
+									>
+										{field}
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* 每个事件的特定参数 */}
+						{selectedEvents.map((eventName, eventIndex) => {
+							const eventParamsMap = (window as any).eventParamsMap || {}
+							const eventSpecificParams = eventParamsMap[eventName] || []
+							
+							return (
+								<div key={`event-${eventIndex}`} className="mb-4">
+									<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+										<span>📋 {eventName} 事件参数</span>
+										<span className="text-xs text-gray-500">({eventSpecificParams.length}个)</span>
+									</div>
+									{eventSpecificParams.length > 0 ? (
+										<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+											{eventSpecificParams.map((param: string, paramIndex: number) => (
+												<div
+													key={`${eventName}-${paramIndex}`}
+													className="px-3 py-2 rounded-lg text-sm font-mono bg-blue-50 text-blue-800 border border-blue-200"
+												>
+													{param}
+												</div>
+											))}
+										</div>
+									) : (
+										<div className="text-sm text-gray-500 italic">
+											暂无参数（请确保已上传正确的 ABI 文件）
+										</div>
+									)}
 								</div>
-							))}
-						</div>
+							)
+						})}
+
 						<div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
 							<div className="text-xs text-yellow-800">
 								<strong>说明：</strong> 
-								<span className="text-blue-800">蓝色</span> 表示事件参数 (args.*)，
-								<span className="text-gray-800">灰色</span> 表示基础字段
+								<span className="text-green-800">绿色</span> 表示公共字段（所有事件共有），
+								<span className="text-blue-800">蓝色</span> 表示事件特定参数 (args.*)
 							</div>
 						</div>
 					</div>

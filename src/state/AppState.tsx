@@ -75,7 +75,12 @@ export type KafkaFlags = {
 export type DictMappingRule = {
 	source_key: string
 	target_key: string
-	transformer?: string
+	transformer?: string | null
+}
+
+export type EventMappingRule = {
+	event_name: string
+	mapping_rules: DictMappingRule[]
 }
 
 export type EventMonitor = {
@@ -90,7 +95,7 @@ export type EventMonitor = {
 export type DictMapper = {
 	name: string
 	type: "dict_mapper"
-	mapping_rules: DictMappingRule[]
+	dict_mappers: EventMappingRule[]
 }
 
 export type KafkaProducer = {
@@ -143,72 +148,11 @@ type AppState = {
 const AppCtx = createContext<AppState | null>(null)
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-	// Initialize with predefined chains
-	const [chains, setChains] = useState<ChainTask[]>([
-		{
-			id: 'chain-eth',
-			name: 'Eth',
-			chain: 'Ethereum',
-			status: 'active',
-			createdAt: new Date(),
-			nodeConfig: {
-				rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/...',
-				wsUrl: 'wss://eth-mainnet.g.alchemy.com/v2/...',
-				chainId: 1
-			}
-		},
-		{
-			id: 'chain-sol',
-			name: 'Sol',
-			chain: 'Solana',
-			status: 'active',
-			createdAt: new Date(),
-			nodeConfig: {
-				rpcUrl: 'https://api.mainnet-beta.solana.com',
-				wsUrl: 'wss://api.mainnet-beta.solana.com',
-				chainId: 101
-			}
-		},
-		{
-			id: 'chain-base',
-			name: 'Base',
-			chain: 'Base',
-			status: 'active',
-			createdAt: new Date(),
-			nodeConfig: {
-				rpcUrl: 'https://mainnet.base.org',
-				wsUrl: 'wss://mainnet.base.org',
-				chainId: 8453
-			}
-		},
-		{
-			id: 'chain-bsc',
-			name: 'BSC',
-			chain: 'BSC',
-			status: 'active',
-			createdAt: new Date(),
-			nodeConfig: { rpcUrl: '', wsUrl: '', chainId: 56 }
-		}
-	])
+	// Initialize with empty chains array
+	const [chains, setChains] = useState<ChainTask[]>([])
 	
-	const [columns, setColumns] = useState<ColumnTask[]>([
-		{
-			id: 'column-aave',
-			name: 'Aave V3 Data',
-			chain: 'Ethereum',
-			type: 'Lending',
-			status: 'active',
-			createdAt: new Date(),
-			sqlText: 'SELECT * FROM aave_events LIMIT 100;',
-			kafka: { enableCompression: false, retryBackoff: false },
-			doris: {
-				host: '',
-				port: 8030,
-				database: '',
-				table: ''
-			}
-		}
-	])
+	// Initialize with empty columns array
+	const [columns, setColumns] = useState<ColumnTask[]>([])
 	
 	// Initialize components as empty array (no initial data as requested)
 	const [components, setComponentsData] = useState<any[]>([])
@@ -216,7 +160,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 	// Initialize event params storage
 	const [eventParams, setEventParamsState] = useState<Record<string, string[]>>({})
 
-	const [currentChainId, setCurrentChainId] = useState<string>('chain-eth')
+	const [currentChainId, setCurrentChainId] = useState<string>('')
 	const [currentProtocolId, setCurrentProtocolId] = useState<string>('')
 	const [currentColumnId, setCurrentColumnId] = useState<string>('')
 	const [currentPipelineId, setCurrentPipelineId] = useState<number | null>(null)

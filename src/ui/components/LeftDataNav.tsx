@@ -4,7 +4,36 @@ import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import type { PipelineTreeNode, PipelineCreateRequest } from '../../services/api'
 
-export default function LeftDataNav() {
+// 菜单项类型定义
+type MenuSection = 'config' | 'abi' | 'database'
+
+// 菜单项配置
+const menuItems = [
+	{
+		id: 'config' as MenuSection,
+		name: '配置管理',
+		icon: '⚙️',
+		description: '管道和链配置'
+	},
+	{
+		id: 'abi' as MenuSection,
+		name: 'ABI管理',
+		icon: '📄',
+		description: '智能合约ABI文件'
+	},
+	{
+		id: 'database' as MenuSection,
+		name: '数据库管理',
+		icon: '🗄️',
+		description: '数据库连接配置'
+	}
+]
+
+interface LeftDataNavProps {
+	onOpenTab?: (tabType: MenuSection, pipelineId?: number) => void
+}
+
+export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 	const { 
 		chains, 
 		columns,
@@ -25,12 +54,14 @@ export default function LeftDataNav() {
 	} = useAppState()
 
 	const navigate = useNavigate()
-	const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set(['chain-eth']))
+	const [activeSection, setActiveSection] = useState<MenuSection>('config')
+	const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set())
 	const [expandedBizTypes, setExpandedBizTypes] = useState<Set<string>>(new Set())
 	const [showProtocolInput, setShowProtocolInput] = useState<string>('')
 	const [newProtocolName, setNewProtocolName] = useState('')
 	const [pipelineTree, setPipelineTree] = useState<PipelineTreeNode[]>([])
 	const [treeLoading, setTreeLoading] = useState(false)
+	const [isCollapsed, setIsCollapsed] = useState(false)
 
 	// 从 API 获取管道树数据
 	const fetchPipelineTree = async () => {
@@ -51,6 +82,8 @@ export default function LeftDataNav() {
 	useEffect(() => {
 		fetchPipelineTree()
 	}, [])
+
+	// 移除自动打开Tab的逻辑，让用户手动点击菜单
 
 	const toggleChainExpansion = (chainId: string) => {
 		const newExpanded = new Set(expandedChains)
@@ -73,254 +106,333 @@ export default function LeftDataNav() {
 		setExpandedBizTypes(newExpanded)
 	}
 
-	const startCreateProtocol = (chainNode: PipelineTreeNode, bizTypeNode: PipelineTreeNode) => {
-		setShowProtocolInput(`${chainNode.name}-${bizTypeNode.name}`)
-		setNewProtocolName('')
-	}
+	const handleCreatePipeline = async (chainId: number, protocolId: number) => {
+		if (!newProtocolName.trim()) return
 
-	const confirmCreateProtocol = async (chainNode: PipelineTreeNode, bizTypeNode: PipelineTreeNode) => {
-		if (newProtocolName.trim()) {
-			try {
-				const createRequest: PipelineCreateRequest = {
-					classification_id: bizTypeNode.id,
-					name: newProtocolName.trim(),
-					description: `${chainNode.name} ${bizTypeNode.name} 管道配置`
-				}
-				
-				const response = await api.pipeline.create(createRequest)
-				
-				if (response.success) {
-					console.log('Pipeline created successfully:', response.data)
-					// 重新获取树数据以刷新界面
-					await fetchPipelineTree()
-					// 清空输入框
-					setShowProtocolInput('')
-					setNewProtocolName('')
-					// 跳转到Step1开始配置
-					navigate('/step-1')
-				} else {
-					console.error('Failed to create pipeline:', response.message)
-					alert(`创建失败: ${response.message}`)
-				}
-			} catch (error) {
-				console.error('Error creating pipeline:', error)
-				alert(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`)
+		try {
+			const request: PipelineCreateRequest = {
+				name: newProtocolName.trim(),
+				description: `Pipeline for ${newProtocolName.trim()}`,
+				classification_id: protocolId
 			}
+
+			const response = await api.pipeline.create(request)
+			if (response.success) {
+				console.log('✅ 管道创建成功:', response.data)
+				// 刷新树数据
+				await fetchPipelineTree()
+				// 清空输入
+				setNewProtocolName('')
+				setShowProtocolInput('')
+			}
+		} catch (error) {
+			console.error('❌ 创建管道失败:', error)
 		}
 	}
 
-	const cancelCreateProtocol = () => {
-		setShowProtocolInput('')
-		setNewProtocolName('')
-	}
-
-	// 处理管道点击跳转
-	const handlePipelineClick = async (pipelineNode: PipelineTreeNode) => {
+	const handlePipelineClick = async (pipelineId: number) => {
 		try {
-			console.log('🎯 管道点击事件:', {
-				name: pipelineNode.name,
-				id: pipelineNode.id,
-				type: pipelineNode.type
-			})
+			console.log('🔄 点击管道，ID:', pipelineId)
 			
 			// 设置当前管道ID
-			setCurrentPipeline(pipelineNode.id)
-			setCurrentProtocolId(`pipeline-${pipelineNode.id}`)  // 保持兼容性
+			setCurrentPipeline(pipelineId)
 			
-			console.log('🔄 开始加载管道配置...')
+			// 尝试加载管道配置
+			await loadPipelineConfig(pipelineId)
 			
-			// 加载管道配置 - 这会调用 /api/v1/pipeline/config/{pipeline_id} 接口
-			await loadPipelineConfig(pipelineNode.id)
-			
-			console.log('✅ 管道配置加载完成，跳转到Step1页面')
-			
-			// 跳转到Step1页面
-			navigate('/step-1')
+			// 在右侧打开配置管理Tab
+			onOpenTab?.('config', pipelineId)
 		} catch (error) {
 			console.error('❌ 处理管道点击失败:', error)
-			// 即使出错也跳转，但组件数据会是空的
-			navigate('/step-1')
+			// 即使出错也打开Tab，但组件数据会是空的
+			onOpenTab?.('config', pipelineId)
 		}
 	}
 
-	return (
-		<div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
-			{/* Header */}
-			<div className="p-4 border-b border-gray-200">
-				<h2 className="text-lg font-semibold text-gray-800">Data Processing Pipeline</h2>
-			</div>
-
-			{/* Tree Structure */}
-			<div className="flex-1 overflow-y-auto p-2">
-				{treeLoading ? (
-					<div className="text-center py-4 text-gray-500 text-sm">
-						加载中...
+	// 递归渲染树节点
+	const renderTreeNode = (node: PipelineTreeNode, level: number = 0) => {
+		const isExpanded = expandedChains.has(`node-${node.id}`)
+		const hasChildren = node.children && node.children.length > 0
+		
+		return (
+			<div key={node.id} style={{ marginLeft: `${level * 16}px` }}>
+				{/* Node */}
+				<div className="flex items-center justify-between group py-1">
+					<button
+						onClick={() => {
+							if (node.type === 'pipeline') {
+								handlePipelineClick(node.id)
+							} else if (hasChildren) {
+								toggleChainExpansion(`node-${node.id}`)
+							}
+						}}
+						className={`flex items-center gap-2 text-sm hover:text-brand ${
+							node.type === 'pipeline' && currentPipelineId === node.id ? 'text-brand font-medium' : 'text-gray-700'
+						}`}
+					>
+						{hasChildren && (
+							<span className="text-xs">
+								{isExpanded ? '▼' : '▶'}
+							</span>
+						)}
+						{!hasChildren && <span className="text-xs w-3"></span>}
+						<span className="text-xs mr-1">
+							{node.type === 'classification' ? '📁' : '📊'}
+						</span>
+						{node.name}
+					</button>
+					<div className="flex gap-1 opacity-0 group-hover:opacity-100">
+						{node.type === 'classification' && (
+							<button
+								onClick={() => setShowProtocolInput(`node-${node.id}`)}
+								className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+							>
+								+
+							</button>
+						)}
+						{node.type === 'pipeline' && (
+							<button
+								onClick={() => handlePipelineClick(node.id)}
+								className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+							>
+								Edit
+							</button>
+						)}
 					</div>
-				) : (
-					<div className="space-y-1">
-						{pipelineTree.map(chainNode => (
-							<div key={chainNode.id}>
-							{/* Chain Level */}
-							<div className="flex items-center justify-between group">
-								<button
-									onClick={() => toggleChainExpansion(`chain-${chainNode.id}`)}
-									className={`flex items-center gap-2 text-sm font-medium hover:text-brand ${
-										currentChainId === `chain-${chainNode.id}` ? 'text-brand' : 'text-gray-700'
-									}`}
-								>
-									<span className="text-xs">
-										{expandedChains.has(`chain-${chainNode.id}`) ? '▼' : '▶'}
-									</span>
-									{chainNode.name}
-								</button>
-								<button
-									onClick={() => setCurrentChain(`chain-${chainNode.id}`)}
-									className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded opacity-0 group-hover:opacity-100 hover:bg-blue-200"
-								>
-									Config
-								</button>
-							</div>
-
-							{/* RPC接入任务 */}
-							{expandedChains.has(`chain-${chainNode.id}`) && (
-								<div className="ml-4 space-y-1">
-									{/* RPC接入配置任务 */}
-									<div className="flex items-center justify-between group">
-										<Link
-											to="/chain-config"
-											onClick={() => setCurrentChain(`chain-${chainNode.id}`)}
-											className="text-xs text-gray-600 hover:text-brand flex items-center gap-2"
-										>
-											<span>🔗</span>
-											RPC接入配置
-										</Link>
-									</div>
-
-									{/* Business Types and Pipelines under this chain */}
-									{chainNode.children.map(childNode => {
-										const chainBizTypeKey = `chain-${chainNode.id}-${childNode.name}`
-										const isClassification = childNode.type === 'classification'
-										const isPipeline = childNode.type === 'pipeline'
-										
-										if (isClassification) {
-											// 分类节点 (DEX, Lending, etc.)
-											return (
-												<div key={childNode.id}>
-													{/* Business Type Level */}
-													<div className="flex items-center justify-between group">
-														<button
-															onClick={() => toggleBizTypeExpansion(`chain-${chainNode.id}`, childNode.name)}
-															className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand"
-														>
-															<span className="text-xs">
-																{expandedBizTypes.has(chainBizTypeKey) ? '▼' : '▶'}
-															</span>
-															{childNode.name}
-															{childNode.children.length > 0 && (
-																<span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">
-																	{childNode.children.length}
-																</span>
-															)}
-														</button>
-														<div className="flex gap-1 opacity-0 group-hover:opacity-100">
-															<button
-																onClick={() => startCreateProtocol(chainNode, childNode)}
-																className="text-xs px-1.5 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700"
-																title="Add Protocol"
-															>
-																+
-															</button>
-														</div>
-													</div>
-
-													{/* Protocol Input Field */}
-													{showProtocolInput === `${chainNode.name}-${childNode.name}` && (
-														<div className="ml-6 space-y-2">
-															<input
-																type="text"
-																placeholder="Enter protocol name..."
-																value={newProtocolName}
-																onChange={(e) => setNewProtocolName(e.target.value)}
-																className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-brand"
-																onKeyPress={(e) => e.key === 'Enter' && confirmCreateProtocol(chainNode, childNode)}
-															/>
-															<div className="flex gap-1">
-																<button
-																	onClick={() => confirmCreateProtocol(chainNode, childNode)}
-																	className="text-xs px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
-																>
-																	✓
-																</button>
-																<button
-																	onClick={cancelCreateProtocol}
-																	className="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
-																>
-																	×
-																</button>
-															</div>
-														</div>
-													)}
-
-													{/* Pipelines under this business type */}
-													{expandedBizTypes.has(chainBizTypeKey) && (
-														<div className="ml-6 space-y-1">
-															{childNode.children.length === 0 ? (
-																<div className="text-xs text-gray-400 italic">
-																	No pipelines configured
-																</div>
-															) : (
-																childNode.children.map(pipelineNode => (
-																	<div key={pipelineNode.id} className="flex items-center justify-between group">
-																																										<button
-																									onClick={() => handlePipelineClick(pipelineNode)}
-																									className={`text-xs hover:text-brand flex items-center gap-2 ${
-																										currentPipelineId === pipelineNode.id ? 'text-brand font-medium' : 'text-gray-600'
-																									}`}
-																								>
-																			<span>📊</span>
-																			{pipelineNode.name}
-																		</button>
-																	</div>
-																))
-															)}
-														</div>
-													)}
-												</div>
-											)
-										} else if (isPipeline) {
-											// 直接的管道节点
-											return (
-												<div key={childNode.id} className="flex items-center justify-between group">
-																																				<button
-																								onClick={() => handlePipelineClick(childNode)}
-																								className={`text-xs hover:text-brand flex items-center gap-2 ${
-																									currentPipelineId === childNode.id ? 'text-brand font-medium' : 'text-gray-600'
-																								}`}
-																							>
-														<span>📊</span>
-														{childNode.name}
-													</button>
-												</div>
-											)
-										}
-										return null
-									})}
-								</div>
-							)}
-						</div>
-					))}
 				</div>
+
+				{/* Children */}
+				{isExpanded && hasChildren && (
+					<div>
+						{node.children.map(child => renderTreeNode(child, level + 1))}
+					</div>
+				)}
+				
+				{/* Add new pipeline input */}
+				{showProtocolInput === `node-${node.id}` && node.type === 'classification' && (
+					<div className="flex gap-2 mt-2" style={{ marginLeft: `${(level + 1) * 16}px` }}>
+						<input
+							type="text"
+							value={newProtocolName}
+							onChange={(e) => setNewProtocolName(e.target.value)}
+							placeholder="Pipeline name"
+							className="flex-1 text-xs px-2 py-1 border border-gray-300 rounded"
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') {
+									handleCreatePipeline(0, node.id)
+								}
+								if (e.key === 'Escape') {
+									setShowProtocolInput('')
+									setNewProtocolName('')
+								}
+							}}
+						/>
+						<button
+							onClick={() => handleCreatePipeline(0, node.id)}
+							className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+						>
+							✓
+						</button>
+						<button
+							onClick={() => {
+								setShowProtocolInput('')
+								setNewProtocolName('')
+							}}
+							className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+						>
+							✗
+						</button>
+					</div>
 				)}
 			</div>
+		)
+	}
 
-			{/* Footer */}
-			<div className="p-4 border-t border-gray-200">
-				<div className="text-xs text-gray-500">
-					{components.length} components configured
+	// 渲染配置管理内容
+	const renderConfigManagement = () => (
+		<div className="space-y-1">
+			{treeLoading ? (
+				<div className="text-center py-4 text-gray-500 text-sm">
+					加载中...
 				</div>
+			) : (
+				<div className="space-y-1">
+					{pipelineTree.map(node => renderTreeNode(node))}
+				</div>
+			)}
+		</div>
+	)
+
+	// 渲染ABI管理内容
+	const renderAbiManagement = () => (
+		<div className="space-y-3">
+			<div className="text-sm text-gray-600 mb-3">
+				管理智能合约 ABI 文件
+			</div>
+			
+			{/* ABI 文件列表 */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+					<div className="flex items-center gap-2">
+						<span className="text-xs">📄</span>
+						<span className="text-sm">ERC20.json</span>
+					</div>
+					<div className="flex gap-1">
+						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+							查看
+						</button>
+						<button className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
+							删除
+						</button>
+					</div>
+				</div>
+				
+				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+					<div className="flex items-center gap-2">
+						<span className="text-xs">📄</span>
+						<span className="text-sm">Uniswap.json</span>
+					</div>
+					<div className="flex gap-1">
+						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+							查看
+						</button>
+						<button className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
+							删除
+						</button>
+					</div>
+				</div>
+			</div>
+			
+			{/* 上传新ABI */}
+			<div className="border-t pt-3">
+				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
+					+ 上传新 ABI 文件
+				</button>
 			</div>
 		</div>
 	)
+
+	// 渲染数据库管理内容
+	const renderDatabaseManagement = () => (
+		<div className="space-y-3">
+			<div className="text-sm text-gray-600 mb-3">
+				管理数据库连接和配置
+			</div>
+			
+			{/* 数据库连接列表 */}
+			<div className="space-y-2">
+				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+					<div className="flex items-center gap-2">
+						<span className="text-xs">🗄️</span>
+						<div>
+							<div className="text-sm font-medium">MySQL-主库</div>
+							<div className="text-xs text-gray-500">mysql://localhost:3306</div>
+						</div>
+					</div>
+					<div className="flex gap-1">
+						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+							测试
+						</button>
+						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
+							编辑
+						</button>
+					</div>
+				</div>
+				
+				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+					<div className="flex items-center gap-2">
+						<span className="text-xs">🗄️</span>
+						<div>
+							<div className="text-sm font-medium">Doris-分析库</div>
+							<div className="text-xs text-gray-500">doris://localhost:8030</div>
+						</div>
+					</div>
+					<div className="flex gap-1">
+						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+							测试
+						</button>
+						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
+							编辑
+						</button>
+					</div>
+				</div>
+			</div>
+			
+			{/* 添加新数据库 */}
+			<div className="border-t pt-3">
+				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
+					+ 添加数据库连接
+				</button>
+			</div>
+		</div>
+	)
+
+	return (
+		<div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex flex-col h-full transition-all duration-300`}>
+			{/* Header */}
+			<div className="p-4 border-b border-gray-200 flex items-center justify-between">
+				{!isCollapsed && <h2 className="text-lg font-semibold text-gray-800">管理中心</h2>}
+				<button
+					onClick={() => setIsCollapsed(!isCollapsed)}
+					className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+					title={isCollapsed ? "展开菜单" : "收起菜单"}
+				>
+					<svg className={`w-5 h-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+					</svg>
+				</button>
+			</div>
+
+			{/* Vertical Menu */}
+			<div className="flex-1 p-3">
+				<div className="space-y-2">
+					{menuItems.map(item => (
+						<button
+							key={item.id}
+							onClick={() => {
+								setActiveSection(item.id)
+								// 每次点击都打开Tab（RightTabSystem会处理重复检查）
+								onOpenTab?.(item.id)
+							}}
+							className={`w-full text-left p-3 rounded-lg transition-colors ${
+								activeSection === item.id
+									? 'bg-brand text-white shadow-md'
+									: 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+							}`}
+							title={isCollapsed ? item.name : ''}
+						>
+							{isCollapsed ? (
+								// 收起状态：只显示图标
+								<div className="flex justify-center">
+									<span className="text-lg">{item.icon}</span>
+								</div>
+							) : (
+								// 展开状态：显示完整内容
+								<div className="flex items-center gap-3">
+									<span className="text-lg">{item.icon}</span>
+									<div>
+										<div className="font-medium text-sm">{item.name}</div>
+										<div className={`text-xs ${
+											activeSection === item.id ? 'text-blue-100' : 'text-gray-500'
+										}`}>
+											{item.description}
+										</div>
+									</div>
+								</div>
+							)}
+						</button>
+					))}
+				</div>
+			</div>
+
+			{/* Footer */}
+			{!isCollapsed && (
+				<div className="p-4 border-t border-gray-200">
+					<div className="text-xs text-gray-500">
+						{components.length} components configured
+					</div>
+				</div>
+			)}
+		</div>
+	)
 }
-
-

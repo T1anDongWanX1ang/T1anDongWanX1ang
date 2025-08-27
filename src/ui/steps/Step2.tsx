@@ -1,6 +1,6 @@
 import Box from '../components/Box'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAppState, DictMapper } from '../../state/AppState'
+import { useAppState, DictMapper, EventMappingRule, DictMappingRule } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI, FieldParsingRequest, TemplateUploadRequest } from '../../services/api'
 import { currentApiConfig } from '../../config/api'
@@ -17,383 +17,382 @@ export default function Step2() {
 	const [saveMessage, setSaveMessage] = useState('')
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	
-	// 本地状态管理映射规则
-	const [mappingRules, setMappingRules] = useState<Array<{
-		id: string
-		sourceKey: string
-		targetKey: string
-		transformer: string
-	}>>([])  
+	// 多事件映射规则状态管理
+	const [eventMappings, setEventMappings] = useState<EventMappingRule[]>([])
+	const [currentEventIndex, setCurrentEventIndex] = useState(0)
+	const [availableEvents, setAvailableEvents] = useState<string[]>([])
 
 	// 从全局 components 中恢复数据，或根据第一步字段自动生成映射规则
 	useEffect(() => {
-		// 如果已经有映射规则，不重复生成
-		if (mappingRules.length > 0) return
+		// 获取 Step1 中的事件监控器配置
+		const step1Component = components.find(c => c.name === "step1")
+		const eventsToMonitor = step1Component?.events_to_monitor || []
 		
+		// 设置可用事件列表
+		setAvailableEvents(eventsToMonitor)
+		
+		// 检查是否已有保存的 Step2 配置
 		const step2Component = components.find(c => c.name === "step2") as DictMapper
 		
-		if (step2Component && step2Component.mapping_rules && step2Component.mapping_rules.length > 0) {
-			// 从保存的数据中恢复映射规则
-			console.log('🔄 从全局 components 恢复 Step2 数据:', step2Component)
+		if (step2Component && step2Component.dict_mappers && step2Component.dict_mappers.length > 0) {
+			// 从保存的数据中恢复多事件映射规则
+			console.log('🔄 从全局 components 恢复 Step2 多事件数据:', step2Component)
+			setEventMappings(step2Component.dict_mappers)
+			setSaveMessage(`✅ 已从管道配置中恢复 ${step2Component.dict_mappers.length} 个事件的映射规则`)
+			setTimeout(() => setSaveMessage(''), 6000)
+		} else if (eventsToMonitor.length > 0) {
+			// 如果没有保存的数据，为每个事件创建默认的映射规则
+			console.log('🔄 根据第一步事件自动生成多事件映射规则:', eventsToMonitor)
 			
-			const restoredRules = step2Component.mapping_rules.map((rule, index) => ({
-				id: `restored_${Date.now()}_${index}`,
-				sourceKey: rule.source_key,
-				targetKey: rule.target_key,
-				transformer: rule.transformer || '无转换'
+			const defaultEventMappings: EventMappingRule[] = eventsToMonitor.map((eventName: string) => ({
+				event_name: eventName,
+				mapping_rules: getDefaultMappingRulesForEvent(eventName)
 			}))
 			
-			setMappingRules(restoredRules)
-			setSaveMessage(`✅ 已从管道配置中恢复 ${step2Component.mapping_rules.length} 条映射规则`)
-			setTimeout(() => setSaveMessage(''), 6000)
-		} else if (eventParams.step1 && eventParams.step1.length > 0) {
-			// 如果没有保存的数据，根据第一步的字段自动生成映射规则
-			console.log('🔄 根据第一步字段自动生成映射规则:', eventParams.step1)
-			
-			const autoRules = eventParams.step1.map((param, index) => {
-				// 为每个参数生成一个映射规则
-				const targetKey = param.startsWith('args.') 
-					? param.replace('args.', '') // 移除 args. 前缀作为目标字段名
-					: param // 基础字段保持原名
-				
-				return {
-					id: `auto_${Date.now()}_${index}`,
-					sourceKey: param,
-					targetKey: targetKey,
-					transformer: '无转换'
-				}
-			})
-			
-			setMappingRules(autoRules)
-			setSaveMessage(`✅ 已根据第一步字段自动生成 ${eventParams.step1.length} 条映射规则`)
+			setEventMappings(defaultEventMappings)
+			setSaveMessage(`✅ 已为 ${eventsToMonitor.length} 个事件自动生成默认映射规则`)
 			setTimeout(() => setSaveMessage(''), 6000)
 		} else {
 			// 没有任何数据可以恢复或生成
 			console.log('📝 Step2: 没有可恢复的数据，等待用户配置')
 		}
-	}, [components, mappingRules.length, eventParams.step1]) // 依赖 eventParams.step1
+	}, [components])
 
-	// 本地映射规则管理函数
-	const addMappingRule = () => {
-		const newRule = {
-			id: `rule_${Date.now()}`,
-			sourceKey: '',
-			targetKey: '',
-			transformer: '无转换'
+	// 从 ABI 中解析特定事件的参数并生成默认映射规则
+	const getDefaultMappingRulesForEvent = (eventName: string): DictMappingRule[] => {
+		const commonRules: DictMappingRule[] = [
+			{
+				source_key: "event_name",
+				target_key: "event_name",
+				transformer: null
+			},
+			{
+				source_key: "contract_address",
+				target_key: "contract_address",
+				transformer: null
+			},
+			{
+				source_key: "transaction_hash",
+				target_key: "transaction_hash",
+				transformer: null
+			},
+			{
+				source_key: "block_number",
+				target_key: "block_number",
+				transformer: null
+			},
+			{
+				source_key: "log_index",
+				target_key: "log_index",
+				transformer: null
+			},
+			{
+				source_key: "timestamp",
+				target_key: "timestamp",
+				transformer: null
+			},
+			{
+				source_key: "chain",
+				target_key: "chain",
+				transformer: null
+			}
+		]
+
+		// 从 Step1 组件中获取 ABI 内容和选中的事件
+		const step1Component = components.find(c => c.name === "step1")
+		if (!step1Component) {
+			console.log('未找到 Step1 组件，使用基础规则')
+			return commonRules
 		}
-		setMappingRules(prev => [...prev, newRule])
+
+		// 尝试直接解析 ABI 内容获取特定事件的参数
+		const eventRules = parseEventParametersFromABI(eventName, step1Component)
+		
+		console.log(`为事件 ${eventName} 从 ABI 解析了 ${eventRules.length} 条参数映射规则:`, eventRules.map(r => r.source_key))
+		return [...commonRules, ...eventRules]
 	}
 
-	const updateMappingRule = (id: string, updates: Partial<{sourceKey: string, targetKey: string, transformer: string}>) => {
-		setMappingRules(prev => prev.map(rule => 
-			rule.id === id ? { ...rule, ...updates } : rule
+	// 从 ABI 中解析特定事件的参数
+	const parseEventParametersFromABI = (eventName: string, step1Component: any): DictMappingRule[] => {
+		try {
+			// 尝试从 Step1 存储的事件参数映射中获取特定事件的参数
+			const eventParamsMap = (window as any).eventParamsMap || {}
+			const eventSpecificParams = eventParamsMap[eventName] || []
+
+			if (eventSpecificParams.length > 0) {
+				console.log(`从 ABI 解析中找到事件 ${eventName} 的 ${eventSpecificParams.length} 个参数:`, eventSpecificParams)
+				return eventSpecificParams.map((param: string) => ({
+					source_key: param,
+					target_key: param.replace('args.', ''), // 移除 args. 前缀作为目标字段
+					transformer: null // 默认为空
+				}))
+			}
+
+			// 如果没有找到特定事件的参数，尝试从全局事件参数中获取
+			const step1EventParams = eventParams.step1 || []
+			const allEventParams = step1EventParams.filter(param => 
+				param.startsWith('args.') && !param.includes('_data')
+			)
+
+			if (allEventParams.length > 0) {
+				console.log(`从全局事件参数中找到 ${allEventParams.length} 个参数（可能包含多个事件的参数）:`, allEventParams)
+				return allEventParams.map(param => ({
+					source_key: param,
+					target_key: param.replace('args.', ''), // 移除 args. 前缀作为目标字段
+					transformer: null // 默认为空
+				}))
+			}
+
+			console.log(`未找到事件 ${eventName} 的已解析参数，请先在 Step1 中上传 ABI 并选择事件`)
+			return []
+		} catch (error) {
+			console.error(`解析事件 ${eventName} 参数时出错:`, error)
+			return []
+		}
+	}
+
+	// 为单个参数生成映射规则的辅助函数
+	const generateMappingRulesForParam = (sourceKey: string, paramName: string, eventName: string): DictMappingRule[] => {
+		// 智能推断目标字段名和转换器
+		let targetKey = paramName
+		let transformer: string | null = null
+
+		// 基于参数名称的智能映射
+		if (paramName === 'from') {
+			targetKey = 'sender_address'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'to') {
+			targetKey = 'receiver_address'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'owner') {
+			targetKey = 'token_owner'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'spender') {
+			targetKey = 'approved_spender'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'operator') {
+			targetKey = 'operator_address'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'approved') {
+			targetKey = 'approved_address'
+			transformer = 'to_lowercase'
+		} else if (paramName === 'tokenId') {
+			targetKey = 'token_id'
+			transformer = 'to_int'
+		} else if (paramName === 'value' || paramName === 'amount') {
+			// 对于金额参数，创建两个映射规则：wei 和 ether
+			return [
+				{
+					source_key: sourceKey,
+					target_key: `${eventName.toLowerCase()}_amount_wei`,
+					transformer: null
+				},
+				{
+					source_key: sourceKey,
+					target_key: `${eventName.toLowerCase()}_amount_ether`,
+					transformer: 'wei_to_ether'
+				}
+			]
+		} else if (paramName.toLowerCase().includes('address')) {
+			// 地址类型参数
+			transformer = 'to_lowercase'
+		} else if (paramName.toLowerCase().includes('amount') || paramName.toLowerCase().includes('value')) {
+			// 其他金额类型参数
+			return [
+				{
+					source_key: sourceKey,
+					target_key: `${paramName}_wei`,
+					transformer: null
+				},
+				{
+					source_key: sourceKey,
+					target_key: `${paramName}_ether`,
+					transformer: 'wei_to_ether'
+				}
+			]
+		} else if (paramName.toLowerCase().includes('id') || paramName.toLowerCase().includes('index')) {
+			// ID 或索引类型参数
+			transformer = 'to_int'
+		} else if (paramName.toLowerCase().includes('time') || paramName.toLowerCase().includes('timestamp')) {
+			// 时间戳类型参数
+			transformer = 'timestamp_to_date'
+		}
+
+		return [{
+			source_key: sourceKey,
+			target_key: targetKey,
+			transformer: transformer
+		}]
+	}
+
+	// 获取当前选中事件的映射规则
+	const getCurrentEventMapping = (): EventMappingRule | null => {
+		return eventMappings[currentEventIndex] || null
+	}
+
+	// 更新当前事件的映射规则
+	const updateCurrentEventMapping = (updatedRules: DictMappingRule[]) => {
+		setEventMappings(prev => prev.map((mapping, index) => 
+			index === currentEventIndex 
+				? { ...mapping, mapping_rules: updatedRules }
+				: mapping
 		))
 	}
 
-	const removeMappingRule = (id: string) => {
-		setMappingRules(prev => prev.filter(rule => rule.id !== id))
+	// 添加新的映射规则到当前事件
+	const addMappingRule = () => {
+		const currentMapping = getCurrentEventMapping()
+		if (!currentMapping) return
+
+		const newRule: DictMappingRule = {
+			source_key: '',
+			target_key: '',
+			transformer: null
+		}
+
+		const updatedRules = [...currentMapping.mapping_rules, newRule]
+		updateCurrentEventMapping(updatedRules)
 	}
 
-	const reorderMappingRules = (dragId: string, dropId: string) => {
-		setMappingRules(prev => {
-			const dragIndex = prev.findIndex(rule => rule.id === dragId)
-			const dropIndex = prev.findIndex(rule => rule.id === dropId)
-			
-			if (dragIndex === -1 || dropIndex === -1) return prev
-			
-			const newRules = [...prev]
-			const [draggedRule] = newRules.splice(dragIndex, 1)
-			newRules.splice(dropIndex, 0, draggedRule)
-			
-			return newRules
-		})
+	// 删除映射规则
+	const removeMappingRule = (ruleIndex: number) => {
+		const currentMapping = getCurrentEventMapping()
+		if (!currentMapping) return
+
+		const updatedRules = currentMapping.mapping_rules.filter((_, index) => index !== ruleIndex)
+		updateCurrentEventMapping(updatedRules)
 	}
 
-	// 处理文件上传
-	const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0]
-		if (!file) return
+	// 更新映射规则
+	const updateMappingRule = (ruleIndex: number, field: keyof DictMappingRule, value: string | null) => {
+		const currentMapping = getCurrentEventMapping()
+		if (!currentMapping) return
 
-		setIsLoading(true)
-		setUploadMessage('')
+		const updatedRules = currentMapping.mapping_rules.map((rule, index) =>
+			index === ruleIndex ? { ...rule, [field]: value } : rule
+		)
+		updateCurrentEventMapping(updatedRules)
+	}
 
-		try {
-			const request: TemplateUploadRequest = {
-				file,
-				chain_name: 'ethereum', // 默认链名
-				protocol_type: 'dex' // 默认协议类型
-			}
+	// 清空当前事件的所有映射规则
+	const handleBatchDelete = () => {
+		updateCurrentEventMapping([])
+		setParsingMessage('✅ 已清空当前事件的所有映射规则')
+		setTimeout(() => setParsingMessage(''), 3000)
+	}
 
-			const response = await fieldParsingAPI.uploadTemplate(request)
+	// 添加新事件
+	const addNewEvent = () => {
+		const eventName = prompt('请输入新事件名称:')
+		if (!eventName || eventName.trim() === '') return
+
+		const newEventMapping: EventMappingRule = {
+			event_name: eventName.trim(),
+			mapping_rules: getDefaultMappingRulesForEvent(eventName.trim())
+		}
+
+		setEventMappings(prev => [...prev, newEventMapping])
+		setCurrentEventIndex(eventMappings.length) // 切换到新添加的事件
+		setParsingMessage(`✅ 已添加新事件: ${eventName}`)
+		setTimeout(() => setParsingMessage(''), 3000)
+	}
+
+	// 删除事件
+	const removeEvent = (eventIndex: number) => {
+		if (eventMappings.length <= 1) {
+			setParsingMessage('❌ 至少需要保留一个事件配置')
+			setTimeout(() => setParsingMessage(''), 3000)
+			return
+		}
+
+		const eventName = eventMappings[eventIndex].event_name
+		if (confirm(`确定要删除事件 "${eventName}" 及其所有映射规则吗？`)) {
+			setEventMappings(prev => prev.filter((_, index) => index !== eventIndex))
 			
-			if (response.success && response.data.parsed_fields) {
-				// 将解析的字段添加到映射规则中
-				const newRules = response.data.parsed_fields.map((field, index) => ({
-					id: `uploaded_${Date.now()}_${index}`,
-					sourceKey: field.source_key,
-					targetKey: field.target_key,
-					transformer: field.transformer
-				}))
-				
-				setMappingRules(prev => [...prev, ...newRules])
-				setUploadMessage(`✅ 成功解析 ${response.data.parsed_fields.length} 个字段`)
-			} else {
-				setUploadMessage(`❌ 解析失败: ${response.data.message}`)
-			}
-		} catch (error) {
-			console.error('Template upload failed:', error)
-			let errorMessage = '❌ 上传失败'
-			
-			if (error instanceof Error) {
-				if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-					errorMessage += `，无法连接到后端服务，请检查：\n1. 后端服务是否启动 (${currentApiConfig.baseUrl})\n2. 网络连接是否正常\n3. 防火墙设置`
-				} else if (error.message.includes('timeout')) {
-					errorMessage += '，请求超时，请稍后重试'
-				} else if (error.message.includes('400')) {
-					errorMessage += '，请求参数错误，请检查文件格式'
-				} else if (error.message.includes('500')) {
-					errorMessage += '，服务器内部错误，请联系管理员'
-				} else {
-					errorMessage += `，错误详情: ${error.message}`
-				}
-			} else {
-				errorMessage += '，未知错误'
+			// 调整当前选中的事件索引
+			if (currentEventIndex >= eventIndex && currentEventIndex > 0) {
+				setCurrentEventIndex(currentEventIndex - 1)
 			}
 			
-			setUploadMessage(errorMessage)
-		} finally {
-			setIsLoading(false)
+			setParsingMessage(`✅ 已删除事件: ${eventName}`)
+			setTimeout(() => setParsingMessage(''), 3000)
 		}
 	}
 
-	// 处理AI字段解析
-	const handleAIParsing = async () => {
-		// 从全局 components 获取 step1 数据
-		const step1Component = components.find(c => c.name === "step1")
-		if (!step1Component) {
-			setParsingMessage('❌ 请先完成第一步配置')
+	// 保存多事件映射配置
+	const handleSaveMapping = async (event?: React.MouseEvent) => {
+		if (eventMappings.length === 0) {
+			setParsingMessage('❌ 请至少配置一个事件的映射规则')
+			if (event) event.preventDefault()
+			return
+		}
+
+		// 验证每个事件至少有一条映射规则
+		const emptyEvents = eventMappings.filter(mapping => mapping.mapping_rules.length === 0)
+		if (emptyEvents.length > 0) {
+			setParsingMessage(`❌ 以下事件没有配置映射规则: ${emptyEvents.map(e => e.event_name).join(', ')}`)
+			if (event) event.preventDefault()
 			return
 		}
 
 		setIsLoading(true)
-		setParsingMessage('')
-
 		try {
-			const request: FieldParsingRequest = {
-				chain_name: step1Component.chain_name || 'ethereum',
-				contract_address: step1Component.contract_address || '0x0000000000000000000000000000000000000000',
-				abi_path: step1Component.abi_path || '/abis/default.json',
-				events_to_monitor: step1Component.events_to_monitor || ['Transfer'],
-				mode: 'realtime',
-				poll_interval: 1.0
-			}
-
-			const response = await fieldParsingAPI.parseFields(request)
-			
-			if (response.success && response.data.fields) {
-				// 添加AI解析的字段
-				const newRules = response.data.fields.map((field, index) => ({
-					id: `ai_${Date.now()}_${index}`,
-					sourceKey: field.source_key,
-					targetKey: field.target_key,
-					transformer: field.transformer
-				}))
-				
-				setMappingRules(prev => [...prev, ...newRules])
-				setParsingMessage(`✅ AI成功解析 ${response.data.fields.length} 个字段`)
-			} else {
-				setParsingMessage(`❌ AI解析失败: ${response.data.message}`)
-			}
-		} catch (error) {
-			console.error('AI parsing failed:', error)
-			setParsingMessage('❌ AI解析失败，请检查网络连接')
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 获取字段建议
-	const handleGetSuggestions = async () => {
-		setIsLoading(true)
-		setParsingMessage('')
-
-		try {
-			const response = await fieldParsingAPI.getFieldSuggestions(
-				'ethereum', // 默认链名
-				'dex' // 默认协议类型
-			)
-			
-			if (response.success && response.data.fields) {
-				// 添加建议的字段到现有规则中
-				const newRules = response.data.fields.map((field, index) => ({
-					id: `suggestion_${Date.now()}_${index}`,
-					sourceKey: field.source_key,
-					targetKey: field.target_key,
-					transformer: field.transformer
-				}))
-				
-				setMappingRules(prev => [...prev, ...newRules])
-				setParsingMessage(`✅ 获取到 ${response.data.fields.length} 个字段建议`)
-			} else {
-				setParsingMessage(`❌ 获取建议失败: ${response.data.message}`)
-			}
-		} catch (error) {
-			console.error('Get suggestions failed:', error)
-			setParsingMessage('❌ 获取建议失败，请检查网络连接')
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 测试后端连接
-	const testBackendConnection = async () => {
-		setIsLoading(true)
-		setUploadMessage('🔄 正在执行完整的后端连接诊断...')
-
-		try {
-			// 1. 基本连接测试
-			const connectionTest = await debugAPI.testConnection()
-			console.log('连接测试结果:', connectionTest)
-			
-			// 2. 上传端点测试
-			const uploadTest = await debugAPI.testUploadEndpoint()
-			console.log('上传端点测试结果:', uploadTest)
-			
-			// 3. CORS测试
-			const corsTest = await debugAPI.testCORS()
-			console.log('CORS测试结果:', corsTest)
-			
-			// 生成详细报告
-			let message = ''
-			if (connectionTest.success && uploadTest.success) {
-				message = '✅ 后端连接完全正常，可以进行文件上传'
-			} else if (connectionTest.success) {
-				message = `⚠️ 后端服务可用，但上传端点有问题: ${uploadTest.message}`
-			} else {
-				message = `❌ 后端连接失败: ${connectionTest.message}`
-			}
-			
-			// 添加详细信息
-			if (connectionTest.details?.availablePaths) {
-				message += `\n\n可用API端点: ${connectionTest.details.availablePaths.slice(0, 5).join(', ')}`
-				if (connectionTest.details.availablePaths.length > 5) {
-					message += '...'
-				}
-			}
-			
-			if (!uploadTest.success && uploadTest.details) {
-				message += `\n\n上传测试详情: HTTP ${uploadTest.details.status} - ${uploadTest.details.statusText}`
-			}
-			
-			setUploadMessage(message)
-		} catch (error) {
-			console.error('Backend connection test failed:', error)
-			setUploadMessage(`❌ 连接测试异常: ${error instanceof Error ? error.message : '未知错误'}`)
-		} finally {
-			setIsLoading(false)
-		}
-	}
-
-	// 验证映射规则
-	const validateMappingRules = () => {
-		if (mappingRules.length === 0) {
-			setSaveMessage('❌ 请至少添加一个字段映射规则')
-			return false
-		}
-
-		for (const rule of mappingRules) {
-			if (!rule.sourceKey.trim()) {
-				setSaveMessage('❌ 源字段名称不能为空')
-				return false
-			}
-			if (!rule.targetKey.trim()) {
-				setSaveMessage('❌ 目标字段名称不能为空')
-				return false
-			}
-		}
-
-		return true
-	}
-
-
-
-	// 保存草稿（本地保存）
-	const handleSaveDraft = () => {
-		if (!validateMappingRules()) return
-		
-		try {
-			// 将 mappingRules 转换为 DictMapper 格式
+			// 组装 DictMapper 数据
 			const dictMapperComponent: DictMapper = {
 				name: "step2",
 				type: "dict_mapper",
-				mapping_rules: mappingRules.map(rule => ({
-					source_key: rule.sourceKey,
-					target_key: rule.targetKey,
-					transformer: rule.transformer === '-' ? undefined : rule.transformer
-				}))
+				dict_mappers: eventMappings
 			}
 			
-			// 保存到全局 components
+			// 更新全局 components
 			updateComponent("step2", dictMapperComponent)
 			
-			// 调试信息
-			console.log('保存的 DictMapper 组件:', dictMapperComponent)
+			// 检查是否是更新还是新增
+			const existingComponent = components.find(c => c.name === "step2")
+			const action = existingComponent ? "更新" : "添加"
 			
-			setSaveMessage('✅ 字段映射规则已保存到组件列表')
-			
-			// 清除消息
-			setTimeout(() => setSaveMessage(''), 3000)
-		} catch (error) {
-			console.error('保存映射规则失败:', error)
-			setSaveMessage('❌ 保存失败，请重试')
-		}
-	}
-
-	// 继续到Step3（先保存再跳转）
-	const handleContinueToStep3 = () => {
-		if (!validateMappingRules()) return
-		
-		try {
-			// 将 mappingRules 转换为 DictMapper 格式
-			const dictMapperComponent: DictMapper = {
-				name: "step2",
-				type: "dict_mapper",
-				mapping_rules: mappingRules.map(rule => ({
-					source_key: rule.sourceKey,
-					target_key: rule.targetKey,
-					transformer: rule.transformer === '-' ? undefined : rule.transformer
-				}))
-			}
-			
-			// 保存到全局 components
-			updateComponent("step2", dictMapperComponent)
+			setSaveMessage(`✅ 多事件映射配置保存成功！\n已${action}到全局组件列表\n配置了 ${eventMappings.length} 个事件的映射规则`)
 			
 			// 调试信息
-			console.log('保存的 DictMapper 组件:', dictMapperComponent)
+			console.log('🎯 Step2 多事件映射保存成功!')
+			console.log('当前 components 列表:', components)
+			console.log(`${action}的 DictMapper:`, dictMapperComponent)
 			
-			setSaveMessage('✅ 字段映射规则已保存，正在跳转到Step3...')
-			
-			// 延迟跳转，让用户看到保存成功的消息
+			// 延迟跳转到下一步
 			setTimeout(() => {
-				navigate('/step-3')
-			}, 1000)
+				// 这里可以添加跳转逻辑
+			}, 1500)
 		} catch (error) {
-			console.error('保存映射规则失败:', error)
-			setSaveMessage('❌ 保存失败，无法跳转到Step3')
+			setSaveMessage('❌ 保存失败，请重试')
+			if (event) event.preventDefault()
+		} finally {
+			setIsLoading(false)
 		}
 	}
 
-	// 批量删除选中的规则
-	const handleBatchDelete = () => {
-		if (mappingRules.length === 0) return
+	// 导出配置
+	const handleExportRules = () => {
+		const exportData = {
+			name: "step2",
+			type: "dict_mapper",
+			dict_mappers: eventMappings
+		}
 		
-		if (confirm(`确定要删除所有 ${mappingRules.length} 个映射规则吗？`)) {
-			setMappingRules([])
-			setSaveMessage('✅ 已删除所有映射规则')
-		}
+		const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = 'multi-event-mapping-rules.json'
+		document.body.appendChild(a)
+		a.click()
+		document.body.removeChild(a)
+		URL.revokeObjectURL(url)
+		
+		setSaveMessage('✅ 多事件映射规则已导出')
+		setTimeout(() => setSaveMessage(''), 3000)
 	}
 
-	// 导入映射规则
+	// 导入配置
 	const handleImportRules = () => {
 		const input = document.createElement('input')
 		input.type = 'file'
@@ -403,266 +402,259 @@ export default function Step2() {
 			if (!file) return
 
 			try {
-				const content = await file.text()
-				const rules = JSON.parse(content)
+				const text = await file.text()
+				const importedData = JSON.parse(text)
 				
-				if (Array.isArray(rules)) {
-					const importedRules = rules.map((rule, index) => ({
-						id: `imported_${Date.now()}_${index}`,
-						sourceKey: rule.source_key || rule.sourceKey,
-						targetKey: rule.target_key || rule.targetKey,
-						transformer: rule.transformer || '无转换'
-					}))
-					
-					setMappingRules(prev => [...prev, ...importedRules])
-					setSaveMessage(`✅ 成功导入 ${rules.length} 个映射规则`)
+				if (importedData.dict_mappers && Array.isArray(importedData.dict_mappers)) {
+					setEventMappings(importedData.dict_mappers)
+					setCurrentEventIndex(0)
+					setSaveMessage(`✅ 已导入 ${importedData.dict_mappers.length} 个事件的映射规则`)
+					setTimeout(() => setSaveMessage(''), 3000)
 				} else {
-					setSaveMessage('❌ 导入失败：文件格式不正确')
+					setSaveMessage('❌ 导入文件格式不正确')
+					setTimeout(() => setSaveMessage(''), 3000)
 				}
 			} catch (error) {
-				setSaveMessage('❌ 导入失败：文件解析错误')
+				setSaveMessage('❌ 导入文件解析失败')
+				setTimeout(() => setSaveMessage(''), 3000)
 			}
 		}
 		input.click()
 	}
 
-	// 导出映射规则
-	const handleExportRules = () => {
-		if (mappingRules.length === 0) {
-			setSaveMessage('❌ 没有可导出的映射规则')
-			return
-		}
-
-		const step1Component = components.find(c => c.name === "step1")
-		const exportData = {
-			protocol_name: 'Step2 Mapping Rules',
-			chain: step1Component?.chain_name || 'ethereum',
-			type: 'dict_mapper',
-			exported_at: new Date().toISOString(),
-			mapping_rules: mappingRules.map(rule => ({
-				source_key: rule.sourceKey,
-				target_key: rule.targetKey,
-				transformer: rule.transformer
-			}))
-		}
-
-		const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = `mapping-rules-step2-${new Date().toISOString().split('T')[0]}.json`
-		document.body.appendChild(a)
-		a.click()
-		document.body.removeChild(a)
-		URL.revokeObjectURL(url)
-		
-		setSaveMessage('✅ 映射规则已导出')
-	}
+	const currentMapping = getCurrentEventMapping()
 
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
-				<h2 className="text-lg font-semibold">Step 2: Upload Template & Edit Fields</h2>
+				<h2 className="text-lg font-semibold">Step 2: Multi-Event Field Mapping</h2>
 				<div className="flex items-center gap-3">
 					<div className="text-sm text-gray-600">
-						Step 2: 字段映射配置
+						Step 2: 多事件字段映射配置
 					</div>
 				</div>
 			</div>
-			
 
-			
-
-
-
-
-			<Box title="Field Mapping Rules (Editable)" right={
-				<div className="flex gap-2">
-					<button 
-						className="btn btn-secondary" 
-						onClick={addMappingRule}
-					>
-						Add Rule
-					</button>
-					<button 
-						className="btn btn-secondary" 
-						onClick={handleImportRules}
-					>
-						Import
-					</button>
-					<button 
-						className="btn btn-secondary" 
-						onClick={handleExportRules}
-						disabled={mappingRules.length === 0}
-					>
-						Export
-					</button>
-					<button 
-						className="btn btn-secondary" 
-						onClick={handleBatchDelete}
-						disabled={mappingRules.length === 0}
-					>
-						Clear All
-					</button>
-
-				</div>
+			{/* 事件选择标签页 */}
+			<Box title="Event Selection" right={
+				<button 
+					className="btn btn-secondary" 
+					onClick={addNewEvent}
+				>
+					Add Event
+				</button>
 			}>
-				{parsingMessage && (
-					<div className={`mb-4 p-3 rounded text-sm ${parsingMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-						{parsingMessage}
-					</div>
-				)}
-				
-				<div className="overflow-x-auto">
-					<table className="table">
-						<thead>
-							<tr>
-								<th>Source Key</th>
-								<th>Target Key</th>
-								<th>Transformer</th>
-								<th>Actions</th>
-							</tr>
-						</thead>
-						<tbody className="text-xs">
-							{mappingRules.map(rule => (
-								<tr key={rule.id}
-									draggable
-									onDragStart={() => setDragId(rule.id)}
-									onDragOver={(e) => e.preventDefault()}
-									onDrop={() => { 
-										if (dragId && dragId !== rule.id) {
-											reorderMappingRules(dragId, rule.id)
-											setDragId(null)
-										}
-									}}
-								>
-									<td>
-										<select 
-											className="input" 
-											value={rule.sourceKey} 
-											onChange={e => updateMappingRule(rule.id, { sourceKey: e.target.value })}
+				<div className="space-y-4">
+					{eventMappings.length > 0 ? (
+						<div className="flex flex-wrap gap-2">
+							{eventMappings.map((mapping, index) => (
+								<div key={index} className="flex items-center">
+									<button
+										className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+											index === currentEventIndex
+												? 'bg-blue-600 text-white'
+												: 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+										}`}
+										onClick={() => setCurrentEventIndex(index)}
+									>
+										{mapping.event_name}
+										<span className="ml-2 text-xs opacity-75">
+											({mapping.mapping_rules.length} rules)
+										</span>
+									</button>
+									{eventMappings.length > 1 && (
+										<button
+											className="ml-1 text-red-500 hover:text-red-700 text-sm"
+											onClick={() => removeEvent(index)}
+											title="删除事件"
 										>
-											<option value="">请选择源字段</option>
-											{eventParams.step1 && eventParams.step1.map((param, index) => (
-												<option key={index} value={param}>
-													{param}
-												</option>
-											))}
-										</select>
-									</td>
-									<td>
-										<input 
-											className="input" 
-											value={rule.targetKey} 
-											onChange={e => updateMappingRule(rule.id, { targetKey: e.target.value })} 
-											placeholder="e.g., sender"
-										/>
-									</td>
-									<td>
-										<select 
-											className="input" 
-											value={rule.transformer} 
-											onChange={e => updateMappingRule(rule.id, { transformer: e.target.value })}
-										>
-											<option value="-">无转换</option>
-											<option value="to_lowercase">转小写</option>
-											<option value="to_uppercase">转大写</option>
-											<option value="to_int">转整数</option>
-											<option value="to_float">转浮点数</option>
-											<option value="normalize_by_decimals">按精度标准化</option>
-											<option value="hex_to_address">十六进制转地址</option>
-											<option value="timestamp_to_date">时间戳转日期</option>
-										</select>
-									</td>
-									<td className="text-right">
-										<button 
-											className="btn btn-secondary" 
-											onClick={() => removeMappingRule(rule.id)}
-										>
-											Delete
+											×
 										</button>
-									</td>
-								</tr>
+									)}
+								</div>
 							))}
-						</tbody>
-					</table>
-				</div>
-				
-				{mappingRules.length === 0 && (
-					<div className="text-center py-8 text-gray-500">
-						<div className="text-lg mb-2">📋 暂无字段映射规则</div>
-						<div className="text-sm">请上传模板文件或使用AI解析来生成字段映射</div>
-					</div>
-				)}
-
-				{/* 保存消息 */}
-				{saveMessage && (
-					<div className={`mt-4 p-3 rounded text-sm ${
-						saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-					}`}>
-						{saveMessage}
-					</div>
-				)}
-				
-				<div className="mt-4 flex gap-3">
-					<button 
-						className="btn" 
-						onClick={handleSaveDraft}
-						disabled={mappingRules.length === 0}
-					>
-						Save Mapping
-					</button>
-					<button 
-						className="btn btn-secondary"
-						onClick={handleContinueToStep3}
-						disabled={mappingRules.length === 0}
-					>
-						Continue to Step 3
-					</button>
+						</div>
+					) : (
+						<div className="text-center py-8 text-gray-500">
+							<p>暂无事件配置</p>
+							<p className="text-sm mt-2">请先在 Step 1 中配置要监控的事件，或手动添加事件</p>
+						</div>
+					)}
 				</div>
 			</Box>
 
-			{/* 调试信息 - 显示 components 中的 step2 数据 */}
-			{(() => {
-				const step2Component = components.find(c => c.name === "step2") as DictMapper
-				return step2Component && (
-					<Box title="Step2 Components 数据 (调试信息)" right={
-						<span className="text-xs text-gray-500 bg-purple-100 px-2 py-1 rounded">
-							从 Components 加载
-						</span>
-					}>
-						<div className="space-y-2">
-							<div className="text-sm text-gray-600">
-								当前保存的映射规则数量: {step2Component.mapping_rules?.length || 0}
-							</div>
-							{step2Component.mapping_rules && step2Component.mapping_rules.length > 0 && (
-								<div className="overflow-x-auto">
-									<table className="table text-xs">
-										<thead>
-											<tr>
-												<th>Source Key</th>
-												<th>Target Key</th>
-												<th>Transformer</th>
-											</tr>
-										</thead>
-										<tbody>
-											{step2Component.mapping_rules.map((rule, index) => (
-												<tr key={index}>
-													<td className="font-mono">{rule.source_key}</td>
-													<td className="font-mono">{rule.target_key}</td>
-													<td>{rule.transformer || '无转换'}</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							)}
+			{/* 当前事件的映射规则配置 */}
+			{currentMapping && (
+				<Box title={`Mapping Rules for "${currentMapping.event_name}"`} right={
+					<div className="flex gap-2">
+						<button 
+							className="btn btn-secondary" 
+							onClick={addMappingRule}
+						>
+							Add Rule
+						</button>
+						<button 
+							className="btn btn-secondary" 
+							onClick={handleImportRules}
+						>
+							Import
+						</button>
+						<button 
+							className="btn btn-secondary" 
+							onClick={handleExportRules}
+							disabled={eventMappings.length === 0}
+						>
+							Export
+						</button>
+						<button 
+							className="btn btn-secondary" 
+							onClick={handleBatchDelete}
+							disabled={currentMapping.mapping_rules.length === 0}
+						>
+							Clear All
+						</button>
+					</div>
+				}>
+					{parsingMessage && (
+						<div className={`mb-4 p-3 rounded text-sm ${parsingMessage.includes('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+							{parsingMessage}
 						</div>
-					</Box>
-				)
-			})()}
+					)}
+					
+					<div className="overflow-x-auto">
+						<table className="w-full border-collapse">
+							<thead>
+								<tr className="border-b border-gray-200">
+									<th className="text-left p-3 font-medium text-gray-700">Source Key</th>
+									<th className="text-left p-3 font-medium text-gray-700">Target Key</th>
+									<th className="text-left p-3 font-medium text-gray-700">Transformer</th>
+									<th className="text-left p-3 font-medium text-gray-700">Actions</th>
+								</tr>
+							</thead>
+							<tbody>
+								{currentMapping.mapping_rules.map((rule, index) => (
+									<tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+										<td className="p-3">
+											<input
+												type="text"
+												className="input w-full"
+												value={rule.source_key}
+												onChange={(e) => updateMappingRule(index, 'source_key', e.target.value)}
+												placeholder="源字段名"
+											/>
+										</td>
+										<td className="p-3">
+											<input
+												type="text"
+												className="input w-full"
+												value={rule.target_key}
+												onChange={(e) => updateMappingRule(index, 'target_key', e.target.value)}
+												placeholder="目标字段名"
+											/>
+										</td>
+										<td className="p-3">
+											<select
+												className="input w-full"
+												value={rule.transformer || ''}
+												onChange={(e) => updateMappingRule(index, 'transformer', e.target.value || null)}
+											>
+												<option value="">无转换</option>
+												<option value="to_int">转换为整数</option>
+												<option value="to_lowercase">转换为小写</option>
+												<option value="to_uppercase">转换为大写</option>
+												<option value="wei_to_ether">Wei转Ether</option>
+												<option value="timestamp_to_date">时间戳转日期</option>
+											</select>
+										</td>
+										<td className="p-3">
+											<button
+												className="text-red-500 hover:text-red-700"
+												onClick={() => removeMappingRule(index)}
+												title="删除规则"
+											>
+												删除
+											</button>
+										</td>
+									</tr>
+								))}
+								{currentMapping.mapping_rules.length === 0 && (
+									<tr>
+										<td colSpan={4} className="p-8 text-center text-gray-500">
+											暂无映射规则，点击 "Add Rule" 添加规则
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					</div>
+				</Box>
+			)}
+
+			{/* 保存消息 */}
+			{saveMessage && (
+				<div className={`p-4 rounded-lg ${
+					saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 
+					saveMessage.includes('❌') ? 'bg-red-50 text-red-700' :
+					'bg-blue-50 text-blue-700'
+				}`}>
+					<pre className="whitespace-pre-wrap">{saveMessage}</pre>
+				</div>
+			)}
+
+			{/* 操作按钮 */}
+			<div className="flex gap-3">
+				<button 
+					className="btn" 
+					onClick={handleSaveMapping}
+					disabled={isLoading}
+				>
+					{isLoading ? '保存中...' : 'Save Multi-Event Mapping'}
+				</button>
+				<Link 
+					to="/step-3" 
+					className="btn btn-secondary"
+					onClick={handleSaveMapping}
+				>
+					Continue to Step 3
+				</Link>
+			</div>
+
+			{/* 配置预览 */}
+			{eventMappings.length > 0 && (
+				<Box title="Multi-Event Configuration Preview">
+					<div className="space-y-4">
+						{eventMappings.map((mapping, index) => (
+							<div key={index} className="border border-gray-200 rounded-lg p-4">
+								<div className="flex items-center justify-between mb-3">
+									<h4 className="font-medium text-gray-900">Event: {mapping.event_name}</h4>
+									<span className="text-sm text-gray-500 bg-blue-100 px-2 py-1 rounded">
+										{mapping.mapping_rules.length} rules
+									</span>
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+									{mapping.mapping_rules.slice(0, 6).map((rule, ruleIndex) => (
+										<div key={ruleIndex} className="bg-gray-50 p-2 rounded">
+											<div className="font-mono text-xs">
+												{rule.source_key} → {rule.target_key}
+											</div>
+											{rule.transformer && (
+												<div className="text-xs text-blue-600 mt-1">
+													{rule.transformer}
+												</div>
+											)}
+										</div>
+									))}
+									{mapping.mapping_rules.length > 6 && (
+										<div className="bg-gray-50 p-2 rounded text-center text-gray-500">
+											+{mapping.mapping_rules.length - 6} more...
+										</div>
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				</Box>
+			)}
 		</div>
 	)
 }
-
-
