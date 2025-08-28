@@ -319,10 +319,10 @@ export default function Step6() {
 			component.type !== 'kafka_producer'
 		)
 		
-		if (flinkComponents.length === 0) {
-			setSaveMessage('❌ 没有可启动的FLINK任务组件')
-			return
-		}
+		// if (flinkComponents.length === 0) {
+		// 	setSaveMessage('❌ 没有可启动的FLINK任务组件')
+		// 	return
+		// }
 
 		setFlinkStartLoading(true)
 		setSaveMessage('')
