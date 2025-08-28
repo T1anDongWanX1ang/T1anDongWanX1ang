@@ -34,8 +34,8 @@ export default function ChainConfig() {
 				rpcUrl: currentChain.nodeConfig.rpcUrl || '',
 				wsUrl: currentChain.nodeConfig.wsUrl || '',
 				chainId: currentChain.nodeConfig.chainId || 1,
-				apiKey: currentChain.nodeConfig.apiKey || '',
-				network: currentChain.nodeConfig.network || 'mainnet'
+				apiKey: '',
+				network: 'mainnet'
 			})
 		}
 	}, [currentChain])
@@ -45,13 +45,13 @@ export default function ChainConfig() {
 		const chain = chains.find(c => c.id === chainId)
 		if (chain) {
 			setEditingChain(chainId)
-			setEditForm({
-				rpcUrl: chain.nodeConfig.rpcUrl || '',
-				wsUrl: chain.nodeConfig.wsUrl || '',
-				chainId: chain.nodeConfig.chainId || 1,
-				apiKey: chain.nodeConfig.apiKey || '',
-				network: chain.nodeConfig.network || 'mainnet'
-			})
+					setEditForm({
+			rpcUrl: chain.nodeConfig.rpcUrl || '',
+			wsUrl: chain.nodeConfig.wsUrl || '',
+			chainId: chain.nodeConfig.chainId || 1,
+			apiKey: '',
+			network: 'mainnet'
+		})
 		}
 	}
 
@@ -86,11 +86,11 @@ export default function ChainConfig() {
 				}
 			)
 
-			if (response.success) {
+			if ((response as any).success) {
 				// 更新本地状态
 				// 这里应该调用AppState中的更新函数
 				setEditingChain(null)
-				setTestResults(prev => ({ ...prev, [editingChain]: null }))
+				setTestResults(prev => ({ ...prev, [editingChain!]: { success: true, message: '配置已保存' } }))
 			}
 		} catch (error) {
 			console.error('Save chain config failed:', error)
@@ -105,7 +105,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: null }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
 
 		try {
 			const startTime = Date.now()
@@ -114,20 +114,20 @@ export default function ChainConfig() {
 			const response = await chainAPI.testRPCConnection(
 				chain.chain.toLowerCase(),
 				chain.nodeConfig.rpcUrl,
-				chain.nodeConfig.apiKey
+				editForm.apiKey || ''
 			)
 
 			const latency = Date.now() - startTime
 
-			if (response.success) {
+			if ((response as any).success) {
 				setTestResults(prev => ({
 					...prev,
 					[chainId]: {
 						success: true,
 						message: 'RPC连接成功',
 						latency,
-						blockHeight: response.data.block_height,
-						details: response.data
+						blockHeight: (response as any).data?.block_height,
+						details: (response as any).data
 					}
 				}))
 			} else {
@@ -135,9 +135,9 @@ export default function ChainConfig() {
 					...prev,
 					[chainId]: {
 						success: false,
-						message: `RPC连接失败: ${response.data.message}`,
+						message: `RPC连接失败: ${(response as any).data?.message}`,
 						latency,
-						details: response.data
+						details: (response as any).data
 					}
 				}))
 			}
@@ -148,8 +148,8 @@ export default function ChainConfig() {
 				[chainId]: {
 					success: false,
 					message: 'RPC连接测试异常',
-					latency: Date.now() - startTime,
-					details: { error: error.message }
+					latency: 0,
+					details: { error: (error as any).message }
 				}
 			}))
 		} finally {
@@ -163,7 +163,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: null }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
 
 		try {
 			const startTime = Date.now()
@@ -172,19 +172,19 @@ export default function ChainConfig() {
 			const response = await chainAPI.testWSConnection(
 				chain.chain.toLowerCase(),
 				chain.nodeConfig.wsUrl,
-				chain.nodeConfig.apiKey
+				editForm.apiKey || ''
 			)
 
 			const latency = Date.now() - startTime
 
-			if (response.success) {
+			if ((response as any).success) {
 				setTestResults(prev => ({
 					...prev,
 					[chainId]: {
 						success: true,
 						message: 'WebSocket连接成功',
 						latency,
-						details: response.data
+						details: (response as any).data
 					}
 				}))
 			} else {
@@ -192,9 +192,9 @@ export default function ChainConfig() {
 					...prev,
 					[chainId]: {
 						success: false,
-						message: `WebSocket连接失败: ${response.data.message}`,
+						message: `WebSocket连接失败: ${(response as any).data?.message}`,
 						latency,
-						details: response.data
+						details: (response as any).data
 					}
 				}))
 			}
@@ -205,8 +205,8 @@ export default function ChainConfig() {
 				[chainId]: {
 					success: false,
 					message: 'WebSocket连接测试异常',
-					latency: Date.now() - startTime,
-					details: { error: error.message }
+					latency: 0,
+					details: { error: (error as any).message }
 				}
 			}))
 		} finally {
@@ -220,7 +220,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: null }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
 
 		try {
 			// 并行测试RPC和WebSocket连接
@@ -337,7 +337,7 @@ export default function ChainConfig() {
 										Network
 									</label>
 									<div className="text-sm text-gray-600">
-										{chain.nodeConfig.network || 'mainnet'}
+										{'mainnet'}
 									</div>
 								</div>
 							</div>

@@ -4,7 +4,7 @@
 export const ENV_CONFIG = {
 	// 开发环境 - 本地开发
 	development: {
-		apiBaseUrl: 'http://192.168.50.94:8001',
+		apiBaseUrl: 'http://127.0.0.1:8001',
 		apiTimeout: 30000,
 		apiRetryAttempts: 3,
 		enableDebug: true,
@@ -22,11 +22,11 @@ export const ENV_CONFIG = {
 	
 	// 生产环境 - 正式服务器
 	production: {
-		apiBaseUrl: 'https://api.yourdomain.com',
+		apiBaseUrl: 'http://pipeline.socialswap.com/',
 		apiTimeout: 60000,
 		apiRetryAttempts: 5,
 		enableDebug: false,
-		logLevel: 'warn'
+		logLevel: 'info'
 	}
 }
 
@@ -36,9 +36,9 @@ export const getCurrentEnvironment = (): keyof typeof ENV_CONFIG => {
 	const mode = (import.meta as any).env?.MODE || 'development'
 	const env = mode
 	console.log('🔍 环境调试:', {
-		'import.meta.env.MODE': mode,
-		'env': env,
-		'ENV_CONFIG keys': Object.keys(ENV_CONFIG)
+		mode: mode,
+		env: env,
+		configKeys: Object.keys(ENV_CONFIG)
 	})
 	return env as keyof typeof ENV_CONFIG
 }
