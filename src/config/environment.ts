@@ -22,7 +22,7 @@ export const ENV_CONFIG = {
 	
 	// 生产环境 - 正式服务器
 	production: {
-		apiBaseUrl: 'http://pipeline.socialswap.com/',
+		apiBaseUrl: 'http://sipzmgt.socialswap.com/',
 		apiTimeout: 60000,
 		apiRetryAttempts: 5,
 		enableDebug: false,
