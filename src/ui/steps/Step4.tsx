@@ -84,7 +84,7 @@ export default function Step4() {
 
 	// 验证字段映射
 	const validateFieldMapping = async () => {
-		const totalMappingRules = eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0)
+		const totalMappingRules = eventMappings.reduce((total: number, mapping: any) => total + mapping.mapping_rules.length, 0)
 		if (totalMappingRules === 0) {
 			setValidationResults(prev => ({
 				...prev,
@@ -97,8 +97,8 @@ export default function Step4() {
 		try {
 			// 调用后端API验证字段映射
 			// 将所有事件的映射规则合并为一个数组进行验证
-			const allMappingRules = eventMappings.flatMap(mapping => mapping.mapping_rules)
-			const response = await fieldParsingAPI.validateMapping(allMappingRules.map(rule => ({
+			const allMappingRules = eventMappings.flatMap((mapping: any) => mapping.mapping_rules)
+			const response = await fieldParsingAPI.validateMapping(allMappingRules.map((rule: any) => ({
 				source_key: rule.source_key,
 				target_key: rule.target_key,
 				transformer: rule.transformer
@@ -187,8 +187,8 @@ export default function Step4() {
 			chain: currentProtocol?.chain || 'Unknown',
 			timestamp: new Date().toISOString(),
 			validation_results: validationResults,
-			mapping_rules_count: eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0),
-			recommendations: []
+			mapping_rules_count: eventMappings.reduce((total: number, mapping: any) => total + mapping.mapping_rules.length, 0),
+			recommendations: [] as string[]
 		}
 
 		// 添加建议
@@ -198,7 +198,7 @@ export default function Step4() {
 		if (validationResults.mapping?.errors?.length) {
 			report.recommendations.push('检查字段映射规则的配置')
 		}
-		if (validationResults.overall?.score < 80) {
+		if (validationResults.overall?.score && validationResults.overall.score < 80) {
 			report.recommendations.push('建议优化配置以提高验证分数')
 		}
 
@@ -442,7 +442,7 @@ export default function Step4() {
 								<div className="text-sm text-gray-600">验证分数</div>
 							</div>
 							<div className="text-center">
-								<div className="text-2xl font-bold text-green-600">{eventMappings.reduce((total, mapping) => total + mapping.mapping_rules.length, 0)}</div>
+								<div className="text-2xl font-bold text-green-600">{eventMappings.reduce((total: number, mapping: any) => total + mapping.mapping_rules.length, 0)}</div>
 								<div className="text-sm text-gray-600">映射规则</div>
 							</div>
 						</div>
