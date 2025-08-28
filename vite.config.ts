@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   base: './', // 使用相对路径，便于部署
   build: {
-    outDir: 'dist',
+    outDir: 'pipeline-ui',
     sourcemap: false, // 生产环境不生成 sourcemap
     minify: 'terser', // 使用 terser 压缩
     rollupOptions: {
