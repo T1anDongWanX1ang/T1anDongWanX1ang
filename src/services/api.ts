@@ -426,34 +426,37 @@ export const fieldParsingAPI = {
 	},
 
 	// 保存摄入配置 (新JSON格式)
-	saveIngestionConfig: async (config: {
-		kafka: {
-			servers: string
-		}
-		chains: string[]
-		chainConfigs: {
-			[chainName: string]: {
-				id?: number
-				kafka: {
-					topics?: string
-					groupId?: string
-				}
-				doris: {
-					host?: string
-					port?: string
-					user?: string
-					password?: string
-					db?: string
-				}
-				mapper: {
-					[tableName: string]: string | undefined
-				}
-				tables: {
-					[tableName: string]: {
-						name: string
-						columns: string[]
-						buffer: {
-							size?: number
+	saveIngestionConfig: async (data: {
+		component_id: number
+		module_content: {
+			kafka: {
+				servers: string
+			}
+			chains: string[]
+			chainConfigs: {
+				[chainName: string]: {
+					id?: number
+					kafka: {
+						topics?: string
+						groupId?: string
+					}
+					doris: {
+						host?: string
+						port?: string
+						user?: string
+						password?: string
+						db?: string
+					}
+					mapper: {
+						[tableName: string]: string | undefined
+					}
+					tables: {
+						[tableName: string]: {
+							name: string
+							columns: string[]
+							buffer: {
+								size?: number
+							}
 						}
 					}
 				}
@@ -462,7 +465,14 @@ export const fieldParsingAPI = {
 	}): Promise<{success: boolean, data: {message: string}}> => {
 		return apiRequest1(API_ENDPOINTS.fieldParsing.saveIngestionConfig, {
 			method: 'POST',
-			body: JSON.stringify(config),
+			body: JSON.stringify(data),
+		})
+	},
+
+	// 启动 Flink 任务
+	startFlinkJob: async (): Promise<{success: boolean, data: any, message?: string}> => {
+		return apiRequest1('/api/v1/start-flink-job', {
+			method: 'POST',
 		})
 	}
 }

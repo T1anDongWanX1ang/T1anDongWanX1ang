@@ -2,7 +2,7 @@ import Box from '../components/Box'
 import { Link } from 'react-router-dom'
 import { useAppState } from '../../state/AppState'
 import { useState, useEffect, useRef } from 'react'
-import { api } from '../../services/api'
+import { api, fieldParsingAPI } from '../../services/api'
 import type { PipelineLatestTaskResponse } from '../../services/api'
 
 export default function Step6() {
@@ -11,6 +11,14 @@ export default function Step6() {
 	
 
 	const [saveMessage, setSaveMessage] = useState('')
+	// Flink任务启动结果状态
+	const [flinkStartResult, setFlinkStartResult] = useState<{
+		success: boolean
+		data: any
+		message?: string
+		timestamp?: string
+	} | null>(null)
+	const [flinkStartLoading, setFlinkStartLoading] = useState(false)
 	const [saveResult, setSaveResult] = useState<{
 		success: boolean
 		pipeline_id: number
@@ -315,9 +323,40 @@ export default function Step6() {
 			setSaveMessage('❌ 没有可启动的FLINK任务组件')
 			return
 		}
-		
-		setSaveMessage(`🚀 FLINK任务已启动！共 ${flinkComponents.length} 个组件`)
-		console.log('⚡ 启动FLINK任务组件:', flinkComponents)
+
+		setFlinkStartLoading(true)
+		setSaveMessage('')
+		setFlinkStartResult(null)
+
+		try {
+			console.log('⚡ 启动FLINK任务组件:', flinkComponents)
+			const response = await fieldParsingAPI.startFlinkJob()
+			
+			const result = {
+				...response,
+				timestamp: new Date().toLocaleString('zh-CN')
+			}
+			
+			setFlinkStartResult(result)
+			
+			if (response.success) {
+				setSaveMessage(`🚀 FLINK任务已成功启动！共 ${flinkComponents.length} 个组件`)
+			} else {
+				setSaveMessage(`❌ FLINK任务启动失败: ${response.message || '未知错误'}`)
+			}
+		} catch (error) {
+			console.error('启动FLINK任务失败:', error)
+			const errorResult = {
+				success: false,
+				data: null,
+				message: error instanceof Error ? error.message : '网络请求失败',
+				timestamp: new Date().toLocaleString('zh-CN')
+			}
+			setFlinkStartResult(errorResult)
+			setSaveMessage(`❌ FLINK任务启动失败: ${errorResult.message}`)
+		} finally {
+			setFlinkStartLoading(false)
+		}
 	}
 
 	// 刷新日志内容（不显示加载状态）
@@ -559,70 +598,111 @@ export default function Step6() {
 							</div>
 						</div>
 
-						{/* 已配置FLINK任务的组件 (其他步骤) */}
+						{/* FLINK任务控制 */}
 						<div>
 							<div className="flex items-center justify-between mb-3">
 								<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
 									<span className="text-green-600">⚡</span>
-									已配置FLINK任务的组件:
+									FLINK任务控制:
 								</h4>
 								<div className="flex gap-2">
 									<button 
-										className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
 										onClick={() => handleSaveFlinkTask()}
+										disabled={isLoading}
 									>
-										Save
+										保存配置
 									</button>
 									<button 
-										className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
 										onClick={() => handleStartFlinkTask()}
+										disabled={flinkStartLoading || isLoading}
 									>
-										Start
+										{flinkStartLoading ? '启动中...' : '启动任务'}
 									</button>
 								</div>
 							</div>
-							<div className="space-y-2">
-								{components
-									.filter(component => 
+							<div className="p-4 bg-gray-50 rounded-lg text-center text-gray-600">
+								<p>点击上方按钮保存配置或启动FLINK任务</p>
+								<p className="text-sm text-gray-500 mt-1">
+									当前管道包含 {components.filter(component => 
 										component.type !== 'event_monitor' && 
 										component.type !== 'dict_mapper' && 
 										component.type !== 'kafka_producer'
-									)
-									.map((component, index) => (
-									<div key={`flink-${index}`} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-										<div className="flex items-center gap-3">
-											<span className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium">
-												{index + 1}
-											</span>
-											<div>
-												<div className="font-medium text-gray-800">{component.name}</div>
-												<div className="text-sm text-green-600">
-													{component.type === 'contract_caller' && '合约调用器'}
-													{component.type === 'data_processor' && '数据处理器'}
-													{component.type === 'stream_processor' && '流处理器'}
-													{component.type || '其他组件'}
-												</div>
-											</div>
-										</div>
-										<span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-											FLINK任务
-										</span>
-									</div>
-								))}
-								{components.filter(component => 
-									component.type !== 'event_monitor' && 
-									component.type !== 'dict_mapper' && 
-									component.type !== 'kafka_producer'
-								).length === 0 && (
-									<div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-center">
-										暂无已配置的FLINK任务组件
-									</div>
-								)}
+									).length} 个FLINK任务组件
+								</p>
 							</div>
 						</div>
 					</div>
 				</div>
 			</Box>
+
+			{/* Flink任务启动结果 */}
+			{flinkStartResult && (
+				<Box title="Flink任务启动结果">
+					<div className="space-y-4">
+						<div className="flex items-center gap-3">
+							<span className="text-2xl">
+								{flinkStartResult.success ? '✅' : '❌'}
+							</span>
+							<div>
+								<div className={`text-lg font-medium ${
+									flinkStartResult.success ? 'text-green-700' : 'text-red-700'
+								}`}>
+									{flinkStartResult.success ? 'Flink任务启动成功' : 'Flink任务启动失败'}
+								</div>
+								<div className="text-sm text-gray-500">
+									启动时间: {flinkStartResult.timestamp}
+								</div>
+							</div>
+						</div>
+
+						{/* 状态信息 */}
+						<div className={`p-4 rounded-lg ${
+							flinkStartResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+						}`}>
+							<div className={`text-sm font-medium mb-2 ${
+								flinkStartResult.success ? 'text-green-800' : 'text-red-800'
+							}`}>
+								响应信息:
+							</div>
+							<div className={`text-sm ${
+								flinkStartResult.success ? 'text-green-700' : 'text-red-700'
+							}`}>
+								{flinkStartResult.message || '无详细信息'}
+							</div>
+						</div>
+
+						{/* 任务详情按钮 - 仅在成功时显示 */}
+						{flinkStartResult.success && (
+							<div className="flex justify-center">
+								<a
+									href="http://35.208.145.201:8081"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+								>
+									<span>🔍</span>
+									任务详情
+									<span className="text-xs">↗</span>
+								</a>
+							</div>
+						)}
+
+						{/* 响应数据 */}
+						{flinkStartResult.data && (
+							<div className="p-4 bg-gray-50 rounded-lg">
+								<div className="text-sm font-medium text-gray-700 mb-2">
+									响应数据:
+								</div>
+								<pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-x-auto">
+									{JSON.stringify(flinkStartResult.data, null, 2)}
+								</pre>
+							</div>
+						)}
+					</div>
+				</Box>
+			)}
 
 			{/* 保存结果 */}
 			{saveResult && (

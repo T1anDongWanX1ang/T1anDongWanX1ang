@@ -299,7 +299,7 @@ export default function Step5() {
 
 	// 保存配置到后端
 	const saveConfiguration = async () => {
-		if (!currentProtocolId || !configData || !selectedChain || !selectedTable) {
+		if (!configData || !selectedChain || !selectedTable) {
 			setSaveMessage('❌ 请完成所有配置选择')
 			return
 		}
@@ -315,7 +315,7 @@ export default function Step5() {
 				.filter(key => mappingFieldsSelection[key])
 
 			// 构建完整的JSON配置数据
-			const configToSave = {
+			const moduleContent = {
 				kafka: {
 					servers: configData.kafka.servers
 				},
@@ -348,8 +348,14 @@ export default function Step5() {
 				}
 			}
 
+			// 包装成新的API格式
+			const requestData = {
+				component_id: 1,
+				module_content: moduleContent
+			}
+
 			// 调用后端API保存配置
-			const response = await fieldParsingAPI.saveIngestionConfig(configToSave)
+			const response = await fieldParsingAPI.saveIngestionConfig(requestData)
 
 			if (response.success) {
 				setSaveMessage('✅ 配置已成功保存到后端')
