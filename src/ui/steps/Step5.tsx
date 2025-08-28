@@ -299,10 +299,10 @@ export default function Step5() {
 
 	// 保存配置到后端
 	const saveConfiguration = async () => {
-		if (!configData || !selectedChain || !selectedTable) {
-			setSaveMessage('❌ 请完成所有配置选择')
-			return
-		}
+		// if (!configData || !selectedChain || !selectedTable) {
+		// 	setSaveMessage('❌ 请完成所有配置选择')
+		// 	return
+		// }
 
 		setIsLoading(true)
 		setSaveMessage('')
