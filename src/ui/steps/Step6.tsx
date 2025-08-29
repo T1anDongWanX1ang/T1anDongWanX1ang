@@ -11,7 +11,8 @@ export default function Step6() {
 	
 
 	const [saveMessage, setSaveMessage] = useState('')
-	// Flink任务启动结果状态
+	
+	// Flink任务相关状态
 	const [flinkStartResult, setFlinkStartResult] = useState<{
 		success: boolean
 		data: any
@@ -19,19 +20,9 @@ export default function Step6() {
 		timestamp?: string
 	} | null>(null)
 	const [flinkStartLoading, setFlinkStartLoading] = useState(false)
-	
-	// Flink任务详情状态
-	const [flinkJobId, setFlinkJobId] = useState<string | null>(null)
 	const [flinkJobDetailUrl, setFlinkJobDetailUrl] = useState<string | null>(null)
-	const [jobPollingStatus, setJobPollingStatus] = useState<{
-		isPolling: boolean
-		attemptCount: number
-		maxAttempts: number
-	}>({
-		isPolling: false,
-		attemptCount: 0,
-		maxAttempts: 5
-	})
+	const [flinkJobId, setFlinkJobId] = useState<string | null>(null)
+
 	const [saveResult, setSaveResult] = useState<{
 		success: boolean
 		pipeline_id: number
@@ -47,6 +38,17 @@ export default function Step6() {
 	const [logModalOpen, setLogModalOpen] = useState(false)
 	const [logContent, setLogContent] = useState('')
 	const [logLoading, setLogLoading] = useState(false)
+
+	// 监听 Flink 状态变化
+	useEffect(() => {
+		console.log('🔄 Flink状态变化监听:', {
+			loading: flinkStartLoading,
+			jobDetailUrl: flinkJobDetailUrl,
+			jobId: flinkJobId,
+			startResultSuccess: flinkStartResult?.success,
+			timestamp: new Date().toLocaleTimeString()
+		})
+	}, [flinkStartLoading, flinkJobDetailUrl, flinkJobId, flinkStartResult])
 	const [logInfo, setLogInfo] = useState<{
 		task_id: number
 		log_path: string
@@ -305,6 +307,167 @@ export default function Step6() {
 		}
 	}
 
+	// 获取任务信息并设置详情链接
+	const fetchJobInfo = async (): Promise<string | null> => {
+		console.log('🔍 开始查询任务信息...')
+		console.log('⏱️ 查询期间按钮保持启动中状态...')
+
+		try {
+			const jobResponse: any = await fieldParsingAPI.getJobInfo()
+			console.log('📡 完整接口响应:', JSON.stringify(jobResponse, null, 2))
+			
+			// 使用 any 类型灵活解析数据
+			let actualJobs = null
+			
+			// 根据实际API返回格式，应该是 jobResponse.data.jobs
+			if (jobResponse && jobResponse.success) {
+				console.log('✅ 接口调用成功')
+				
+				// 尝试多种可能的数据路径
+				if (jobResponse.data && jobResponse.data.jobs) {
+					actualJobs = jobResponse.data.jobs
+					console.log('📋 在 data.jobs 中找到任务数组')
+				} else if (jobResponse.data && jobResponse.data.data && jobResponse.data.data.jobs) {
+					actualJobs = jobResponse.data.data.jobs
+					console.log('📋 在 data.data.jobs 中找到任务数组')
+				} else if (jobResponse.jobs) {
+					actualJobs = jobResponse.jobs
+					console.log('📋 在根级别找到任务数组')
+				}
+			}
+			
+			console.log('🔍 解析到的任务数组:', actualJobs)
+			console.log('🔍 任务数组类型:', typeof actualJobs)
+			console.log('🔍 是否为数组:', Array.isArray(actualJobs))
+			
+			if (!actualJobs || !Array.isArray(actualJobs) || actualJobs.length === 0) {
+				console.log('❌ 没有找到有效的任务数组')
+				return null
+			}
+
+			console.log('✅ 成功找到任务数组，数量:', actualJobs.length)
+			console.log('📋 前3个任务预览:', actualJobs.slice(0, 3))
+			
+			// 取第一个任务
+			const firstJob = actualJobs[0]
+			console.log('📋 第一个任务完整数据:', JSON.stringify(firstJob, null, 2))
+			
+			if (!firstJob) {
+				console.log('❌ 第一个任务为空')
+				return null
+			}
+
+			if (!firstJob.job_id) {
+				console.log('❌ 第一个任务没有 job_id')
+				console.log('🔍 第一个任务的所有属性:', Object.keys(firstJob))
+				return null
+			}
+
+			console.log('🔍 原始 job_id:', firstJob.job_id)
+
+			// 处理重复的 job_id
+			let cleanJobId = firstJob.job_id.trim()
+			if (cleanJobId.indexOf(' ') !== -1) {
+				cleanJobId = cleanJobId.split(' ')[0].trim()
+				console.log('🔧 清理后的 job_id:', cleanJobId)
+			}
+
+			// 生成详情链接
+			const detailUrl = `http://35.208.145.201:8081/#/job/running/${cleanJobId}/overview`
+			console.log('🔗 生成的详情链接:', detailUrl)
+
+			// 立即设置状态
+			console.log('📊 即将设置状态...')
+			console.log('📊 设置 flinkJobId:', cleanJobId)
+			console.log('📊 设置 flinkJobDetailUrl:', detailUrl)
+			
+			setFlinkJobId(cleanJobId)
+			setFlinkJobDetailUrl(detailUrl)
+			
+			// 强制状态更新并验证
+			setTimeout(() => {
+				console.log('🔍 验证状态设置结果:')
+				console.log('  期望的 jobId:', cleanJobId)
+				console.log('  期望的 detailUrl:', detailUrl)
+				console.log('  实际的状态会在状态监听器中显示')
+			}, 100)
+			
+			// 强制组件重新渲染
+			setFlinkStartResult(prev => prev ? { ...prev } : null)
+			
+			console.log('✅ 任务信息处理完成，取消loading状态')
+			setFlinkStartLoading(false)
+			console.log('✅ 按钮应显示"启动任务"并恢复可点击状态')
+			return cleanJobId
+
+		} catch (error) {
+			console.error('❌ 查询任务信息异常:', error)
+			if (error instanceof Error) {
+				console.error('❌ 错误堆栈:', error.stack)
+			}
+			console.log('❌ 查询失败，取消loading状态')
+			setFlinkStartLoading(false)
+			return null
+		}
+	}
+
+	// 启动Flink任务
+	const startFlinkJob = async () => {
+		setFlinkStartLoading(true)
+		setFlinkStartResult(null)
+		setFlinkJobDetailUrl(null)
+		setFlinkJobId(null)
+
+		try {
+			console.log('🚀 启动Flink任务...')
+			const response = await fieldParsingAPI.startFlinkJob()
+			
+			const result = {
+				...response,
+				timestamp: new Date().toLocaleString('zh-CN')
+			}
+			
+			setFlinkStartResult(result)
+			
+			if (response.success) {
+				setSaveMessage(`🚀 Flink任务已成功启动，正在等待任务信息...`)
+				
+				// 启动成功后，等待15秒查询任务信息 - 期间保持loading状态
+				console.log('⏱️ 15秒后查询任务信息，期间按钮保持"启动中"状态...')
+				console.log('📅 当前时间:', new Date().toLocaleTimeString())
+				setTimeout(async () => {
+					console.log('⏰ 15秒到了，开始查询任务信息...')
+					console.log('📅 查询时间:', new Date().toLocaleTimeString())
+					const result = await fetchJobInfo()
+					console.log('📊 fetchJobInfo 返回结果:', result)
+					
+					// fetchJobInfo 内部会处理 loading 状态的取消
+					if (!result) {
+						console.log('❌ 任务信息获取失败，取消loading状态')
+						setFlinkStartLoading(false)
+						setSaveMessage(`❌ 无法获取任务信息`)
+					} else {
+						setSaveMessage(`✅ Flink任务启动成功！任务ID: ${result}`)
+					}
+				}, 15000)
+			} else {
+				setSaveMessage(`❌ Flink任务启动失败: ${response.message || '未知错误'}`)
+				setFlinkStartLoading(false)
+			}
+		} catch (error) {
+			console.error('启动Flink任务失败:', error)
+			const errorResult = {
+				success: false,
+				data: null,
+				message: error instanceof Error ? error.message : '网络请求失败',
+				timestamp: new Date().toLocaleString('zh-CN')
+			}
+			setFlinkStartResult(errorResult)
+			setSaveMessage(`❌ Flink任务启动失败: ${errorResult.message}`)
+			setFlinkStartLoading(false)
+		}
+	}
+
 	// 保存FLINK任务
 	const handleSaveFlinkTask = async () => {
 		console.log('🔄 保存FLINK任务...')
@@ -323,130 +486,9 @@ export default function Step6() {
 		console.log('⚡ FLINK任务组件:', flinkComponents)
 	}
 
-	// 轮询获取任务信息
-	const pollJobInfo = async (attempt: number = 0): Promise<string | null> => {
-		if (attempt >= jobPollingStatus.maxAttempts) {
-			console.log('📋 达到最大轮询次数，停止轮询')
-			setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
-			return null
-		}
 
-		setJobPollingStatus(prev => ({ 
-			...prev, 
-			isPolling: true, 
-			attemptCount: attempt + 1 
-		}))
 
-		try {
-			console.log(`🔍 第${attempt + 1}次查询任务信息...`)
-			const jobResponse = await fieldParsingAPI.getJobInfo()
-			
-			if (jobResponse.success && jobResponse.data.jobs && jobResponse.data.jobs.length > 0) {
-				// 查找状态为 running 的任务
-				const runningJob = jobResponse.data.jobs.find(job => job.status === 'RUNNING' || job.status === 'running')
-				
-				if (runningJob) {
-					console.log('✅ 找到运行中的任务:', runningJob)
-					const jobId = runningJob.job_id
-					const detailUrl = `http://35.208.145.201:8081/#/job/running/${jobId}/overview`
-					
-					setFlinkJobId(jobId)
-					setFlinkJobDetailUrl(detailUrl)
-					setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
-					
-					return jobId
-				}
-			}
-			
-			// 没有找到运行中的任务，继续轮询
-			console.log(`⏳ 未找到运行中的任务，15秒后进行第${attempt + 2}次查询...`)
-			
-			if (attempt < jobPollingStatus.maxAttempts - 1) {
-				setTimeout(() => {
-					pollJobInfo(attempt + 1)
-				}, 15000) // 15秒后再次查询
-			} else {
-				setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
-			}
-			
-			return null
-		} catch (error) {
-			console.error(`❌ 第${attempt + 1}次查询任务信息失败:`, error)
-			
-			if (attempt < jobPollingStatus.maxAttempts - 1) {
-				setTimeout(() => {
-					pollJobInfo(attempt + 1)
-				}, 15000)
-			} else {
-				setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
-			}
-			
-			return null
-		}
-	}
 
-	// 启动FLINK任务
-	const handleStartFlinkTask = async () => {
-		console.log('🚀 启动FLINK任务...')
-		const flinkComponents = components.filter(component => 
-			component.type !== 'event_monitor' && 
-			component.type !== 'dict_mapper' && 
-			component.type !== 'kafka_producer'
-		)
-		
-		// if (flinkComponents.length === 0) {
-		// 	setSaveMessage('❌ 没有可启动的FLINK任务组件')
-		// 	return
-		// }
-
-		setFlinkStartLoading(true)
-		setSaveMessage('')
-		setFlinkStartResult(null)
-		setFlinkJobId(null)
-		setFlinkJobDetailUrl(null)
-		setJobPollingStatus({
-			isPolling: false,
-			attemptCount: 0,
-			maxAttempts: 5
-		})
-
-		try {
-			console.log('⚡ 启动FLINK任务组件:', flinkComponents)
-			const response = await fieldParsingAPI.startFlinkJob()
-			
-			const result = {
-				...response,
-				timestamp: new Date().toLocaleString('zh-CN')
-			}
-			
-			setFlinkStartResult(result)
-			
-			if (response.success) {
-				setSaveMessage(`🚀 FLINK任务已成功启动！共 ${flinkComponents.length} 个组件`)
-				
-				// 启动成功后，等待15秒开始轮询任务信息
-				console.log('⏱️ 15秒后开始查询任务信息...')
-				setTimeout(() => {
-					pollJobInfo(0)
-				}, 15000)
-				
-			} else {
-				setSaveMessage(`❌ FLINK任务启动失败: ${response.message || '未知错误'}`)
-			}
-		} catch (error) {
-			console.error('启动FLINK任务失败:', error)
-			const errorResult = {
-				success: false,
-				data: null,
-				message: error instanceof Error ? error.message : '网络请求失败',
-				timestamp: new Date().toLocaleString('zh-CN')
-			}
-			setFlinkStartResult(errorResult)
-			setSaveMessage(`❌ FLINK任务启动失败: ${errorResult.message}`)
-		} finally {
-			setFlinkStartLoading(false)
-		}
-	}
 
 	// 刷新日志内容（不显示加载状态）
 	const refreshLogContent = async (taskId: number) => {
@@ -688,135 +730,143 @@ export default function Step6() {
 						</div>
 
 						{/* FLINK任务控制 */}
-						<div>
+						<div className="space-y-4">
 							<div className="flex items-center justify-between mb-3">
 								<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
 									<span className="text-green-600">⚡</span>
 									FLINK任务控制:
 								</h4>
-								<div className="flex gap-2">
-									<button 
-										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-										onClick={() => handleSaveFlinkTask()}
-										disabled={isLoading}
-									>
-										保存配置
-									</button>
-									<button 
-										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-										onClick={() => handleStartFlinkTask()}
-										disabled={flinkStartLoading || isLoading}
-									>
-										{flinkStartLoading ? '启动中...' : '启动任务'}
-									</button>
+							</div>
+							
+							{/* 启动按钮 */}
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm text-gray-600">
+										{flinkStartLoading ? '正在启动并获取任务信息...' : '点击启动Flink任务'}
+									</p>
+									<p className="text-xs text-gray-500 mt-1">
+										{flinkStartLoading ? '请等待任务启动和信息查询完成' : '启动后将自动查询任务信息并生成详情链接'}
+									</p>
 								</div>
+								<button
+									onClick={startFlinkJob}
+									disabled={flinkStartLoading}
+									className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									{flinkStartLoading ? '启动中...' : '启动任务'}
+								</button>
 							</div>
-							<div className="p-4 bg-gray-50 rounded-lg text-center text-gray-600">
-								<p>点击上方按钮保存配置或启动FLINK任务</p>
-								<p className="text-sm text-gray-500 mt-1">
-									当前管道包含 {components.filter(component => 
-										component.type !== 'event_monitor' && 
-										component.type !== 'dict_mapper' && 
-										component.type !== 'kafka_producer'
-									).length} 个FLINK任务组件
-								</p>
-							</div>
+
+							{/* Flink启动结果 */}
+							{flinkStartResult && (
+								<div className={`p-4 rounded-lg ${
+									flinkStartResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+								}`}>
+									<div className="flex items-center gap-3 mb-3">
+										<span className="text-xl">
+											{flinkStartResult.success ? '✅' : '❌'}
+										</span>
+										<div>
+											<div className={`font-medium ${
+												flinkStartResult.success ? 'text-green-700' : 'text-red-700'
+											}`}>
+												{flinkStartResult.success ? 'Flink任务启动成功' : 'Flink任务启动失败'}
+											</div>
+											<div className="text-sm text-gray-500">
+												启动时间: {flinkStartResult.timestamp}
+											</div>
+										</div>
+									</div>
+									
+									{/* 任务详情按钮 - 仅在成功时显示 */}
+									{flinkStartResult.success && flinkJobDetailUrl && (
+										<div className="flex justify-center mt-4">
+											<a
+												href={flinkJobDetailUrl}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+											>
+												<span>🔍</span>
+												任务详情
+												<span className="text-xs">↗</span>
+											</a>
+										</div>
+									)}
+									
+									{/* 调试信息区域 */}
+									<div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+																			<div className="text-sm space-y-1">
+										<div className="font-medium text-yellow-800">调试信息:</div>
+										<div className="text-yellow-700">
+											按钮状态: {flinkStartLoading ? '🔄 启动中' : '✅ 可点击'}
+										</div>
+										<div className="text-yellow-700">
+											启动成功: {flinkStartResult?.success ? '✅ 是' : '❌ 否'}
+										</div>
+										<div className="text-yellow-700">
+											详情链接: {flinkJobDetailUrl ? '✅ 已生成' : '❌ 未生成'}
+										</div>
+										<div className="text-yellow-700">
+											任务ID: {flinkJobId || '未获取'}
+										</div>
+										{flinkJobDetailUrl && (
+											<div className="text-xs text-yellow-600 break-all">
+												链接: {flinkJobDetailUrl}
+											</div>
+										)}
+									</div>
+										
+										{/* 手动测试按钮 */}
+										<div className="mt-3 flex gap-2">
+											<button
+												onClick={async () => {
+													console.log('🧪 手动测试获取任务信息 - 开始')
+													console.log('📅 手动测试时间:', new Date().toLocaleTimeString())
+													
+													// 手动测试时设置loading状态
+													setFlinkStartLoading(true)
+													const result = await fetchJobInfo()
+													console.log('🧪 手动测试结果:', result)
+													
+													if (!result) {
+														setFlinkStartLoading(false)
+													}
+													
+													console.log('📊 手动测试后的状态:', {
+														flinkJobDetailUrl,
+														flinkJobId,
+														flinkStartResult: flinkStartResult?.success,
+														loading: flinkStartLoading
+													})
+												}}
+												disabled={flinkStartLoading}
+												className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors disabled:opacity-50"
+											>
+												{flinkStartLoading ? '查询中...' : '手动获取任务信息'}
+											</button>
+											<button
+												onClick={() => {
+													console.log('📊 当前状态:', {
+														flinkStartResult,
+														flinkJobDetailUrl,
+														flinkJobId
+													})
+												}}
+												className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+											>
+												打印状态
+											</button>
+										</div>
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 				</div>
 			</Box>
 
-			{/* Flink任务启动结果 */}
-			{flinkStartResult && (
-				<Box title="Flink任务启动结果">
-					<div className="space-y-4">
-						<div className="flex items-center gap-3">
-							<span className="text-2xl">
-								{flinkStartResult.success ? '✅' : '❌'}
-							</span>
-							<div>
-								<div className={`text-lg font-medium ${
-									flinkStartResult.success ? 'text-green-700' : 'text-red-700'
-								}`}>
-									{flinkStartResult.success ? 'Flink任务启动成功' : 'Flink任务启动失败'}
-								</div>
-								<div className="text-sm text-gray-500">
-									启动时间: {flinkStartResult.timestamp}
-								</div>
-							</div>
-						</div>
 
-						{/* 状态信息 */}
-						<div className={`p-4 rounded-lg ${
-							flinkStartResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-						}`}>
-							<div className={`text-sm font-medium mb-2 ${
-								flinkStartResult.success ? 'text-green-800' : 'text-red-800'
-							}`}>
-								响应信息:
-							</div>
-							<div className={`text-sm ${
-								flinkStartResult.success ? 'text-green-700' : 'text-red-700'
-							}`}>
-								{flinkStartResult.message || '无详细信息'}
-							</div>
-						</div>
-
-						{/* 任务详情按钮 - 仅在成功时显示 */}
-						{flinkStartResult.success && (
-							<div className="flex flex-col items-center gap-3">
-								{flinkJobDetailUrl ? (
-									<a
-										href={flinkJobDetailUrl}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-									>
-										<span>🔍</span>
-										任务详情
-										<span className="text-xs">↗</span>
-									</a>
-								) : jobPollingStatus.isPolling ? (
-									<div className="px-6 py-3 bg-gray-400 text-white font-medium rounded-lg inline-flex items-center gap-2 cursor-not-allowed">
-										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-										获取任务信息中...
-									</div>
-								) : (
-									<div className="px-6 py-3 bg-gray-300 text-gray-600 font-medium rounded-lg inline-flex items-center gap-2 cursor-not-allowed">
-										<span>⏱️</span>
-										等待任务启动
-									</div>
-								)}
-								
-								{/* 轮询状态提示 */}
-								{jobPollingStatus.isPolling && (
-									<div className="text-sm text-gray-600 text-center">
-										正在查询任务状态... ({jobPollingStatus.attemptCount}/{jobPollingStatus.maxAttempts})
-									</div>
-								)}
-								
-								{flinkJobId && (
-									<div className="text-xs text-gray-500 text-center">
-										任务ID: {flinkJobId}
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* 响应数据 */}
-						{flinkStartResult.data && (
-							<div className="p-4 bg-gray-50 rounded-lg">
-								<div className="text-sm font-medium text-gray-700 mb-2">
-									响应数据:
-								</div>
-								<pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-x-auto">
-									{JSON.stringify(flinkStartResult.data, null, 2)}
-								</pre>
-							</div>
-						)}
-					</div>
-				</Box>
-			)}
 
 			{/* 保存结果 */}
 			{saveResult && (

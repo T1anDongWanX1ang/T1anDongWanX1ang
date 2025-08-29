@@ -482,9 +482,38 @@ export const fieldParsingAPI = {
 
 	// 启动 Flink 任务
 	startFlinkJob: async (): Promise<{success: boolean, data: any, message?: string}> => {
-		return apiRequest1('/api/v1/start-flink-job', {
-			method: 'POST',
-		})
+		try {
+			const url = 'http://127.0.0.1:8000/api/v1/start-flink-job'
+			console.log('🚀 启动 Flink 任务:', url)
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				}
+			})
+			
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+			}
+			
+			const data = await response.json()
+			console.log('✅ Flink 任务启动响应:', data)
+			
+			return {
+				success: true,
+				data: data,
+				message: 'Flink job started successfully'
+			}
+		} catch (error) {
+			console.error('❌ 启动 Flink 任务失败:', error)
+			return {
+				success: false,
+				data: null,
+				message: error instanceof Error ? error.message : 'Unknown error'
+			}
+		}
 	},
 
 	// 获取 Flink 任务信息
@@ -494,9 +523,16 @@ export const fieldParsingAPI = {
 			jobs?: Array<{
 				job_id: string,
 				job_name: string,
-				status: string,
+				job_state: string,
 				[key: string]: any
-			}>
+			}>,
+			total_jobs?: number,
+			metadata?: {
+				query_time?: string,
+				running_jobs_count?: number,
+				flink_server?: string,
+				[key: string]: any
+			}
 		}, 
 		message?: string
 	}> => {
@@ -504,9 +540,50 @@ export const fieldParsingAPI = {
 			job_name: jobName,
 			output_format: outputFormat
 		})
-		return apiRequest1(`/api/v1/get-job-info?${params.toString()}`, {
-			method: 'GET',
-		})
+		
+		// 使用简单的 fetch 请求，避免超时问题
+		try {
+			const url = `http://127.0.0.1:8000/api/v1/get-job-info?${params.toString()}`
+			console.log('🔍 请求 Flink 任务信息:', url)
+			
+			const response = await fetch(url, {
+				method: 'GET',
+				headers: {
+					'Accept': 'application/json',
+					'Content-Type': 'application/json'
+				}
+			})
+			
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+			}
+			
+			const data = await response.json()
+			console.log('✅ Flink 任务信息原始响应:', data)
+			
+			// 直接返回原始数据，不再包装
+			// 这样 fetchJobInfo 就能直接访问 data.jobs
+			if (data && data.success !== undefined) {
+				// 如果原始响应已经有 success 字段，直接返回
+				console.log('📦 返回原始API响应格式')
+				return data
+			} else {
+				// 否则包装成标准格式  
+				console.log('📦 包装成标准格式')
+				return {
+					success: true,
+					data: data,
+					message: 'Job info retrieved successfully'
+				}
+			}
+		} catch (error) {
+			console.error('❌ 获取 Flink 任务信息失败:', error)
+			return {
+				success: false,
+				data: {},
+				message: error instanceof Error ? error.message : 'Unknown error'
+			}
+		}
 	}
 }
 
