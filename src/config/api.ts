@@ -61,7 +61,9 @@ export const API_ENDPOINTS = {
 		start: '/api/v1/pipeline/start',
 		getTask: '/api/v1/pipeline/task',
 		getLatestTask: '/api/v1/pipeline/pipeline/{pipelineId}/latest-task',
-		getTaskLog: '/api/v1/pipeline/task'
+		getTaskLog: '/api/v1/pipeline/task',
+		deleteClassification: '/api/v1/pipeline/classification/{classification_id}',
+		deletePipeline: '/api/v1/pipeline/{pipeline_id}'
 	}
 }
 

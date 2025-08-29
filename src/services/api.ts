@@ -279,6 +279,17 @@ export interface PipelineTaskLogResponse {
 	returned_lines: number
 }
 
+// Pipeline Delete 相关类型
+export interface PipelineDeleteResponse {
+	success: boolean
+	message: string
+}
+
+export interface ClassificationDeleteResponse {
+	success: boolean
+	message: string
+}
+
 // API函数
 export const fieldParsingAPI = {
 	// 解析字段映射
@@ -908,6 +919,68 @@ export const pipelineAPI = {
 			return result
 		} catch (error) {
 			console.error('Pipeline task log query failed:', error)
+			throw error
+		}
+	},
+	
+	// 删除分类
+	deleteClassification: async (classificationId: number): Promise<ClassificationDeleteResponse> => {
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.deleteClassification.replace('{classification_id}', classificationId.toString())}`
+		console.log('🗑️ 删除分类API URL:', url)
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'DELETE',
+				headers: DEFAULT_HEADERS,
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Classification ${classificationId} deleted successfully:`, result)
+			return result
+		} catch (error) {
+			console.error('Classification delete failed:', error)
+			throw error
+		}
+	},
+	
+	// 删除管道
+	deletePipeline: async (pipelineId: number): Promise<PipelineDeleteResponse> => {
+		const url = `${currentApiConfig.baseUrl}${API_ENDPOINTS.pipeline.deletePipeline.replace('{pipeline_id}', pipelineId.toString())}`
+		console.log('🗑️ 删除管道API URL:', url)
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
+			
+			const response = await fetch(url, {
+				method: 'DELETE',
+				headers: DEFAULT_HEADERS,
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			const result = await response.json()
+			console.log(`Pipeline ${pipelineId} deleted successfully:`, result)
+			return result
+		} catch (error) {
+			console.error('Pipeline delete failed:', error)
 			throw error
 		}
 	}

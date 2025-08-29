@@ -308,7 +308,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 						"block_number",
 						"log_index",
 						"timestamp",
-						"chain"
+						"chain",
+						"chain_id"
 					]
 					
 					// 这里简化处理，如果需要完整的事件参数解析，需要ABI数据

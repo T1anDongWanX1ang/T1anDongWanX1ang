@@ -544,18 +544,18 @@ export default function Step6() {
 								
 								<div className="flex gap-2">
 									<button 
-										className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 										onClick={() => handleSaveParseTask()}
 										disabled={isLoading || !currentPipelineId}
 									>
-										{isLoading ? '保存中...' : 'Save'}
+										{isLoading ? '保存中...' : '保存配置'}
 									</button>
 									<button 
-										className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 										onClick={() => handleStartParseTask()}
 										disabled={isLoading || !currentPipelineId}
 									>
-										{isLoading ? '启动中...' : 'Start'}
+										{isLoading ? '启动中...' : '启动任务'}
 									</button>
 								</div>
 							</div>
@@ -607,14 +607,14 @@ export default function Step6() {
 								</h4>
 								<div className="flex gap-2">
 									<button 
-										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 										onClick={() => handleSaveFlinkTask()}
 										disabled={isLoading}
 									>
 										保存配置
 									</button>
 									<button 
-										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
 										onClick={() => handleStartFlinkTask()}
 										disabled={flinkStartLoading || isLoading}
 									>

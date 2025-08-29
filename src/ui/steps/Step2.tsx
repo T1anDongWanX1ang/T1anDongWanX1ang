@@ -1,5 +1,5 @@
 import Box from '../components/Box'
-import { Link, useNavigate } from 'react-router-dom'
+
 import { useAppState, DictMapper, EventMappingRule, DictMappingRule } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI, FieldParsingRequest, TemplateUploadRequest } from '../../services/api'
@@ -7,9 +7,13 @@ import { currentApiConfig } from '../../config/api'
 
 import { debugAPI } from '../../utils/debug'
 
-export default function Step2() {
+interface Step2Props {
+	onStepChange?: (step: number) => void
+}
+
+export default function Step2({ onStepChange }: Step2Props = {}) {
 	const { eventParams, updateComponent, components } = useAppState()
-	const navigate = useNavigate()
+
 	const [dragId, setDragId] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
 	const [uploadMessage, setUploadMessage] = useState('')
@@ -610,13 +614,17 @@ export default function Step2() {
 				>
 					{isLoading ? '保存中...' : 'Save Multi-Event Mapping'}
 				</button>
-				<Link 
-					to="/step-3" 
+				<button 
 					className="btn btn-secondary"
-					onClick={handleSaveMapping}
+					onClick={async () => {
+						await handleSaveMapping()
+						if (onStepChange) {
+							onStepChange(3)
+						}
+					}}
 				>
 					Continue to Step 3
-				</Link>
+				</button>
 			</div>
 
 			{/* 配置预览 */}

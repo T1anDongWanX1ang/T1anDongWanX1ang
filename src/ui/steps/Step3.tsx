@@ -1,9 +1,13 @@
 import Box from '../components/Box'
-import { Link } from 'react-router-dom'
+
 import { useAppState, KafkaProducer } from '../../state/AppState'
 import { useState, useEffect } from 'react'
 
-export default function Step3() {
+interface Step3Props {
+	onStepChange?: (step: number) => void
+}
+
+export default function Step3({ onStepChange }: Step3Props = {}) {
 	const { components, updateComponent, currentPipelineId } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [validationMessage, setValidationMessage] = useState('')
@@ -305,13 +309,17 @@ export default function Step3() {
 				>
 					{isLoading ? '保存中...' : 'Save Kafka Config'}
 				</button>
-				<Link 
-					to="/step-4" 
+				<button 
 					className="btn btn-secondary"
-					onClick={handleSaveKafkaConfig}
+					onClick={async () => {
+						await handleSaveKafkaConfig()
+						if (onStepChange) {
+							onStepChange(4)
+						}
+					}}
 				>
 					Continue to Step 4
-				</Link>
+				</button>
 			</div>
 
 			{/* 配置预览 - 从 components 中获取数据 */}

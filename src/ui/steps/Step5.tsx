@@ -308,6 +308,12 @@ export default function Step5() {
 		setSaveMessage('')
 
 		try {
+			if (!configData) {
+				setSaveMessage('配置数据不存在')
+				setIsLoading(false)
+				return
+			}
+
 			const chainConfig = configData.chainConfigs[selectedChain]
 
 			// 获取选中的映射字段
@@ -492,11 +498,11 @@ export default function Step5() {
 								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
 							>
 								<option value="">请选择链...</option>
-								{configData.chains.map(chain => (
-									<option key={chain} value={chain}>
-										{chain.toUpperCase()} (ID: {configData.chainConfigs[chain]?.id})
-									</option>
-								))}
+																	{configData?.chains.map(chain => (
+										<option key={chain} value={chain}>
+											{chain.toUpperCase()} (ID: {configData.chainConfigs[chain]?.id})
+										</option>
+									)) || []}
 							</select>
 						</div>
 
@@ -512,11 +518,11 @@ export default function Step5() {
 									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
 								>
 									<option value="">请选择表...</option>
-									{Object.keys(configData.chainConfigs[selectedChain].tables).map(tableName => (
+									{configData?.chainConfigs[selectedChain]?.tables ? Object.keys(configData.chainConfigs[selectedChain].tables).map(tableName => (
 										<option key={tableName} value={tableName}>
 											{tableName}
 										</option>
-									))}
+									)) : []}
 								</select>
 							</div>
 						)}
@@ -528,14 +534,14 @@ export default function Step5() {
 							<h4 className="text-sm font-medium text-gray-700 mb-2">配置预览</h4>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 								<div>
-									<p><strong>Kafka服务器:</strong> {configData.kafka.servers}</p>
-									<p><strong>Topic:</strong> {configData.chainConfigs[selectedChain].kafka.topics}</p>
-									<p><strong>Group ID:</strong> {configData.chainConfigs[selectedChain].kafka.groupId}</p>
+																<p><strong>Kafka服务器:</strong> {configData?.kafka.servers}</p>
+							<p><strong>Topic:</strong> {configData?.chainConfigs[selectedChain]?.kafka.topics}</p>
+							<p><strong>Group ID:</strong> {configData?.chainConfigs[selectedChain]?.kafka.groupId}</p>
 								</div>
 								<div>
-									<p><strong>Doris主机:</strong> {configData.chainConfigs[selectedChain].doris.host}:{configData.chainConfigs[selectedChain].doris.port}</p>
-									<p><strong>数据库:</strong> {configData.chainConfigs[selectedChain].doris.db}</p>
-									<p><strong>用户:</strong> {configData.chainConfigs[selectedChain].doris.user}</p>
+																<p><strong>Doris主机:</strong> {configData?.chainConfigs[selectedChain]?.doris.host}:{configData?.chainConfigs[selectedChain]?.doris.port}</p>
+							<p><strong>数据库:</strong> {configData?.chainConfigs[selectedChain]?.doris.db}</p>
+							<p><strong>用户:</strong> {configData?.chainConfigs[selectedChain]?.doris.user}</p>
 								</div>
 							</div>
 						</div>
@@ -551,7 +557,7 @@ export default function Step5() {
 							选择要入库的表字段 (表: {selectedTable})
 						</label>
 						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
-							{configData.chainConfigs[selectedChain].tables[selectedTable].columns.map(column => (
+							{configData?.chainConfigs[selectedChain]?.tables[selectedTable]?.columns?.map(column => (
 								<label key={column} className="flex items-center space-x-2 text-sm">
 									<input
 										type="checkbox"

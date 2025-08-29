@@ -1,10 +1,14 @@
 import Box from '../components/Box'
-import { Link } from 'react-router-dom'
+
 import { useAppState, EventMonitor } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { api } from '../../services/api'
 
-export default function Step1() {
+interface Step1Props {
+	onStepChange?: (step: number) => void
+}
+
+export default function Step1({ onStepChange }: Step1Props = {}) {
 	const { components, updateComponent, setEventParams, eventParams, currentPipelineId } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [validationMessage, setValidationMessage] = useState('')
@@ -222,7 +226,8 @@ export default function Step1() {
 				"block_number",
 				"log_index",
 				"timestamp",
-				"chain"
+				"chain",
+				"chain_id"
 			]
 			baseFields.forEach(field => allParams.add(field))
 			
@@ -555,13 +560,17 @@ export default function Step1() {
 				>
 					{isLoading ? '保存中...' : 'Save Data Plan'}
 				</button>
-				<Link 
-					to="/step-2" 
+				<button 
 					className="btn btn-secondary"
-					onClick={handleSaveDataPlan}
+					onClick={async () => {
+						await handleSaveDataPlan()
+						if (onStepChange) {
+							onStepChange(2)
+						}
+					}}
 				>
 					Continue to Step 2
-				</Link>
+				</button>
 			</div>
 
 
