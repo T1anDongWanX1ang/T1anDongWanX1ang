@@ -485,6 +485,28 @@ export const fieldParsingAPI = {
 		return apiRequest1('/api/v1/start-flink-job', {
 			method: 'POST',
 		})
+	},
+
+	// 获取 Flink 任务信息
+	getJobInfo: async (jobName: string = 'MultiChainTokenJob', outputFormat: string = 'json'): Promise<{
+		success: boolean, 
+		data: {
+			jobs?: Array<{
+				job_id: string,
+				job_name: string,
+				status: string,
+				[key: string]: any
+			}>
+		}, 
+		message?: string
+	}> => {
+		const params = new URLSearchParams({
+			job_name: jobName,
+			output_format: outputFormat
+		})
+		return apiRequest1(`/api/v1/get-job-info?${params.toString()}`, {
+			method: 'GET',
+		})
 	}
 }
 

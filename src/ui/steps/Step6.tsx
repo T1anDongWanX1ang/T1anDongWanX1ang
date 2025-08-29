@@ -19,6 +19,19 @@ export default function Step6() {
 		timestamp?: string
 	} | null>(null)
 	const [flinkStartLoading, setFlinkStartLoading] = useState(false)
+	
+	// Flink任务详情状态
+	const [flinkJobId, setFlinkJobId] = useState<string | null>(null)
+	const [flinkJobDetailUrl, setFlinkJobDetailUrl] = useState<string | null>(null)
+	const [jobPollingStatus, setJobPollingStatus] = useState<{
+		isPolling: boolean
+		attemptCount: number
+		maxAttempts: number
+	}>({
+		isPolling: false,
+		attemptCount: 0,
+		maxAttempts: 5
+	})
 	const [saveResult, setSaveResult] = useState<{
 		success: boolean
 		pipeline_id: number
@@ -310,6 +323,68 @@ export default function Step6() {
 		console.log('⚡ FLINK任务组件:', flinkComponents)
 	}
 
+	// 轮询获取任务信息
+	const pollJobInfo = async (attempt: number = 0): Promise<string | null> => {
+		if (attempt >= jobPollingStatus.maxAttempts) {
+			console.log('📋 达到最大轮询次数，停止轮询')
+			setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
+			return null
+		}
+
+		setJobPollingStatus(prev => ({ 
+			...prev, 
+			isPolling: true, 
+			attemptCount: attempt + 1 
+		}))
+
+		try {
+			console.log(`🔍 第${attempt + 1}次查询任务信息...`)
+			const jobResponse = await fieldParsingAPI.getJobInfo()
+			
+			if (jobResponse.success && jobResponse.data.jobs && jobResponse.data.jobs.length > 0) {
+				// 查找状态为 running 的任务
+				const runningJob = jobResponse.data.jobs.find(job => job.status === 'RUNNING' || job.status === 'running')
+				
+				if (runningJob) {
+					console.log('✅ 找到运行中的任务:', runningJob)
+					const jobId = runningJob.job_id
+					const detailUrl = `http://35.208.145.201:8081/#/job/running/${jobId}/overview`
+					
+					setFlinkJobId(jobId)
+					setFlinkJobDetailUrl(detailUrl)
+					setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
+					
+					return jobId
+				}
+			}
+			
+			// 没有找到运行中的任务，继续轮询
+			console.log(`⏳ 未找到运行中的任务，15秒后进行第${attempt + 2}次查询...`)
+			
+			if (attempt < jobPollingStatus.maxAttempts - 1) {
+				setTimeout(() => {
+					pollJobInfo(attempt + 1)
+				}, 15000) // 15秒后再次查询
+			} else {
+				setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
+			}
+			
+			return null
+		} catch (error) {
+			console.error(`❌ 第${attempt + 1}次查询任务信息失败:`, error)
+			
+			if (attempt < jobPollingStatus.maxAttempts - 1) {
+				setTimeout(() => {
+					pollJobInfo(attempt + 1)
+				}, 15000)
+			} else {
+				setJobPollingStatus(prev => ({ ...prev, isPolling: false }))
+			}
+			
+			return null
+		}
+	}
+
 	// 启动FLINK任务
 	const handleStartFlinkTask = async () => {
 		console.log('🚀 启动FLINK任务...')
@@ -327,6 +402,13 @@ export default function Step6() {
 		setFlinkStartLoading(true)
 		setSaveMessage('')
 		setFlinkStartResult(null)
+		setFlinkJobId(null)
+		setFlinkJobDetailUrl(null)
+		setJobPollingStatus({
+			isPolling: false,
+			attemptCount: 0,
+			maxAttempts: 5
+		})
 
 		try {
 			console.log('⚡ 启动FLINK任务组件:', flinkComponents)
@@ -341,6 +423,13 @@ export default function Step6() {
 			
 			if (response.success) {
 				setSaveMessage(`🚀 FLINK任务已成功启动！共 ${flinkComponents.length} 个组件`)
+				
+				// 启动成功后，等待15秒开始轮询任务信息
+				console.log('⏱️ 15秒后开始查询任务信息...')
+				setTimeout(() => {
+					pollJobInfo(0)
+				}, 15000)
+				
 			} else {
 				setSaveMessage(`❌ FLINK任务启动失败: ${response.message || '未知错误'}`)
 			}
@@ -675,17 +764,42 @@ export default function Step6() {
 
 						{/* 任务详情按钮 - 仅在成功时显示 */}
 						{flinkStartResult.success && (
-							<div className="flex justify-center">
-								<a
-									href="http://35.208.145.201:8081"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-								>
-									<span>🔍</span>
-									任务详情
-									<span className="text-xs">↗</span>
-								</a>
+							<div className="flex flex-col items-center gap-3">
+								{flinkJobDetailUrl ? (
+									<a
+										href={flinkJobDetailUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+									>
+										<span>🔍</span>
+										任务详情
+										<span className="text-xs">↗</span>
+									</a>
+								) : jobPollingStatus.isPolling ? (
+									<div className="px-6 py-3 bg-gray-400 text-white font-medium rounded-lg inline-flex items-center gap-2 cursor-not-allowed">
+										<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+										获取任务信息中...
+									</div>
+								) : (
+									<div className="px-6 py-3 bg-gray-300 text-gray-600 font-medium rounded-lg inline-flex items-center gap-2 cursor-not-allowed">
+										<span>⏱️</span>
+										等待任务启动
+									</div>
+								)}
+								
+								{/* 轮询状态提示 */}
+								{jobPollingStatus.isPolling && (
+									<div className="text-sm text-gray-600 text-center">
+										正在查询任务状态... ({jobPollingStatus.attemptCount}/{jobPollingStatus.maxAttempts})
+									</div>
+								)}
+								
+								{flinkJobId && (
+									<div className="text-xs text-gray-500 text-center">
+										任务ID: {flinkJobId}
+									</div>
+								)}
 							</div>
 						)}
 
