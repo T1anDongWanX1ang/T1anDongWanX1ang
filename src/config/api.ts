@@ -20,7 +20,8 @@ export const API_ENDPOINTS = {
 		executeSQLTest: '/api/v1/execute-sql-test',
 		testKafkaConnection: '/api/v1/test-kafka-connection',
 		testDorisConnection: '/api/v1/test-doris-connection',
-		saveIngestionConfig: '/api/v1/save-ingestion-config'
+		saveIngestionConfig: '/api/v1/save-ingestion-config',
+		getComponentConfig: '/api/v1/component/{componentId}/config'
 	},
 	
 	// 链配置相关

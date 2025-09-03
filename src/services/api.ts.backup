@@ -516,67 +516,8 @@ export const fieldParsingAPI = {
 		}
 	},
 
-
-	// 获取组件配置数据 (从数据库读取ID=2的配置)
-	getComponentConfig: async (componentId: number = 2): Promise<{
-		success: boolean,
-		data: {
-			job?: {
-				name: string
-			}
-			[key: string]: any
-		} | null,
-		message?: string
-	}> => {
-		try {
-			// 使用正确的组件配置API端点
-			const endpoint = API_ENDPOINTS.fieldParsing.getComponentConfig.replace('{componentId}', componentId.toString())
-			const url = `${currentApiConfig.baseUrl}${endpoint}`
-			console.log('🔍 获取组件配置:', url)
-			
-			const response = await fetch(url, {
-				method: 'GET',
-				headers: {
-					'Accept': 'application/json',
-					'Content-Type': 'application/json'
-				}
-			})
-			
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-			}
-			
-			const result = await response.json()
-			console.log('✅ 组件配置获取成功:', result)
-			
-			// 检查API响应格式
-			if (result && result.success && result.data && result.data.job && result.data.job.name) {
-				console.log('✅ 从配置中找到job名称:', result.data.job.name)
-				return {
-					success: true,
-					data: result.data,
-					message: 'Component config retrieved successfully'
-				}
-			}
-			
-			// 如果没有找到job信息，返回失败
-			console.log('⚠️ 配置响应格式不正确或未找到job信息')
-			return {
-				success: false,
-				data: null,
-				message: 'Job configuration not found or invalid format'
-			}
-		} catch (error) {
-			console.error('❌ 获取组件配置失败:', error)
-			return {
-				success: false,
-				data: null,
-				message: error instanceof Error ? error.message : 'Unknown error'
-			}
-		}
-	},
 	// 获取 Flink 任务信息
-	getJobInfo: async (jobName?: string, outputFormat: string = 'json'): Promise<{
+	getJobInfo: async (jobName: string = 'DDC-RTC-DataProc', outputFormat: string = 'json'): Promise<{
 		success: boolean, 
 		data: {
 			jobs?: Array<{
@@ -595,27 +536,8 @@ export const fieldParsingAPI = {
 		}, 
 		message?: string
 	}> => {
-		// 如果没有提供jobName，尝试从配置中获取
-		let finalJobName = jobName
-		if (!finalJobName) {
-			try {
-				console.log('�� 未提供job名称，尝试从配置中获取...')
-				const configResponse = await fieldParsingAPI.getComponentConfig(2)
-				if (configResponse.success && configResponse.data && configResponse.data.job && configResponse.data.job.name) {
-					finalJobName = configResponse.data.job.name
-					console.log('✅ 从配置中获取到job名称:', finalJobName)
-				} else {
-					console.log('⚠️ 配置中未找到job名称，使用默认值')
-					finalJobName = 'DDC-RTC-DataProc'
-				}
-			} catch (error) {
-				console.warn('⚠️ 获取配置失败，使用默认job名称:', error)
-				finalJobName = 'DDC-RTC-DataProc'
-			}
-		}
-		
 		const params = new URLSearchParams({
-			job_name: finalJobName,
+			job_name: jobName,
 			output_format: outputFormat
 		})
 		
