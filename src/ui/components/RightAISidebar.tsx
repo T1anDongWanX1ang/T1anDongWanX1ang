@@ -7,7 +7,7 @@ type Suggestion = { id: string; title: string; tips: Array<{ text: string; actio
 export default function RightAISidebar() {
 	const { pathname } = useLocation()
 	const [showModal, setShowModal] = useState(false)
-	const [isCollapsed, setIsCollapsed] = useState(true) // 默认收起
+	const [isCollapsed, setIsCollapsed] = useState(true) // Default collapsed
 	const { 
 		applySuggestion, 
 		currentChainId, 
@@ -19,7 +19,7 @@ export default function RightAISidebar() {
 	} = useAppState()
 	
 	const currentChain = chains.find(c => c.id === currentChainId)
-	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
+	const currentProtocol = components.find(c => c.name === "step1") // Get step1 data from components
 	const currentColumn = columns.find(c => c.id === currentColumnId)
 	
 	const suggestion = useMemo<Suggestion>(() => {
@@ -97,12 +97,12 @@ export default function RightAISidebar() {
 				isCollapsed ? 'w-12' : 'w-[320px]'
 			}`}>
 				{isCollapsed ? (
-					// 收起状态 - 只显示一个按钮
+					// Collapsed state - only show one button
 					<div className="p-3">
 						<button
 							onClick={() => setIsCollapsed(false)}
 							className="w-full p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded flex items-center justify-center"
-							title="展开AI建议"
+							title="Expand AI Suggestions"
 						>
 							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -110,7 +110,7 @@ export default function RightAISidebar() {
 						</button>
 					</div>
 				) : (
-					// 展开状态 - 显示完整内容
+					// Expanded state - show full content
 					<div className="p-4">
 						<div className="flex items-center justify-between mb-4">
 							<h3 className="font-semibold text-gray-800">{suggestion.title}</h3>
@@ -118,7 +118,7 @@ export default function RightAISidebar() {
 								<button
 									onClick={() => setShowModal(true)}
 									className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-									title="展开AI建议详情"
+									title="Expand AI Suggestion Details"
 								>
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -127,7 +127,7 @@ export default function RightAISidebar() {
 								<button
 									onClick={() => setIsCollapsed(true)}
 									className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-									title="收起AI建议"
+									title="Collapse AI Suggestions"
 								>
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -188,13 +188,13 @@ export default function RightAISidebar() {
 				)}
 			</aside>
 
-			{/* AI建议弹框 */}
+			{/* AI Suggestion Modal */}
 			{showModal && (
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
 						{/* Modal Header */}
 						<div className="flex items-center justify-between p-4 border-b border-gray-200">
-							<h2 className="text-lg font-semibold text-gray-800">AI 智能建议</h2>
+							<h2 className="text-lg font-semibold text-gray-800">AI Smart Suggestions</h2>
 							<button
 								onClick={() => setShowModal(false)}
 								className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
@@ -219,7 +219,7 @@ export default function RightAISidebar() {
 													}} 
 													className="px-3 py-1 bg-brand text-white text-xs rounded hover:bg-brand/90"
 												>
-													应用
+													Apply
 												</button>
 											) : (
 												<div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
@@ -244,7 +244,7 @@ export default function RightAISidebar() {
 									onClick={() => setShowModal(false)}
 									className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
 								>
-									关闭
+									Close
 								</button>
 							</div>
 						</div>

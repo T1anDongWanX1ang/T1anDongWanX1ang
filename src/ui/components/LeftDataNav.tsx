@@ -11,21 +11,21 @@ type MenuSection = 'config' | 'abi' | 'database'
 const menuItems = [
 	{
 		id: 'config' as MenuSection,
-		name: '配置管理',
+		name: 'Configuration Management',
 		icon: '⚙️',
-		description: '管道和链配置'
+		description: 'Pipeline and chain configuration'
 	},
 	{
 		id: 'abi' as MenuSection,
-		name: 'ABI管理',
+		name: 'ABI Management',
 		icon: '📄',
-		description: '智能合约ABI文件'
+		description: 'Smart contract ABI files'
 	},
 	{
 		id: 'database' as MenuSection,
-		name: '数据库管理',
+		name: 'Database Management',
 		icon: '🗄️',
-		description: '数据库连接配置'
+		description: 'Database connection configuration'
 	}
 ]
 
@@ -95,11 +95,11 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 				setShowDeleteConfirm(null)
 			} else {
 				console.error('❌ 分类删除失败:', response.message)
-				alert(`删除失败: ${response.message}`)
+				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('❌ 分类删除请求失败:', error)
-			alert('删除失败，请重试')
+			alert('Delete failed, please try again')
 		}
 	}
 
@@ -118,11 +118,11 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 				}
 			} else {
 				console.error('❌ 管道删除失败:', response.message)
-				alert(`删除失败: ${response.message}`)
+				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('❌ 管道删除请求失败:', error)
-			alert('删除失败，请重试')
+			alert('Delete failed, please try again')
 		}
 	}
 
@@ -239,7 +239,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 							<button
 								onClick={() => setShowProtocolInput(`node-${node.id}`)}
 								className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-								title="添加管道"
+								title="Add Pipeline"
 							>
 								+
 							</button>
@@ -248,7 +248,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 							<button
 								onClick={() => handlePipelineClick(node.id)}
 								className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-								title="编辑管道"
+								title="Edit Pipeline"
 							>
 								Edit
 							</button>
@@ -260,7 +260,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 								setShowDeleteConfirm(node.id)
 							}}
 							className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-							title={node.type === 'classification' ? '删除分类' : '删除管道'}
+							title={node.type === 'classification' ? 'Delete Classification' : 'Delete Pipeline'}
 						>
 							🗑️
 						</button>
@@ -319,7 +319,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		<div className="space-y-1">
 			{treeLoading ? (
 				<div className="text-center py-4 text-gray-500 text-sm">
-					加载中...
+					Loading...
 				</div>
 			) : (
 				<div className="space-y-1">
@@ -333,7 +333,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 	const renderAbiManagement = () => (
 		<div className="space-y-3">
 			<div className="text-sm text-gray-600 mb-3">
-				管理智能合约 ABI 文件
+				Manage smart contract ABI files
 			</div>
 			
 			{/* ABI 文件列表 */}
@@ -345,10 +345,10 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 					</div>
 					<div className="flex gap-1">
 						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							查看
+							View
 						</button>
 						<button className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-							删除
+							Delete
 						</button>
 					</div>
 				</div>
@@ -360,10 +360,10 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 					</div>
 					<div className="flex gap-1">
 						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							查看
+							View
 						</button>
 						<button className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-							删除
+							Delete
 						</button>
 					</div>
 				</div>
@@ -372,7 +372,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 			{/* 上传新ABI */}
 			<div className="border-t pt-3">
 				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
-					+ 上传新 ABI 文件
+					+ Upload New ABI File
 				</button>
 			</div>
 		</div>
@@ -382,7 +382,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 	const renderDatabaseManagement = () => (
 		<div className="space-y-3">
 			<div className="text-sm text-gray-600 mb-3">
-				管理数据库连接和配置
+				Manage database connections and configurations
 			</div>
 			
 			{/* 数据库连接列表 */}
@@ -391,16 +391,16 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 					<div className="flex items-center gap-2">
 						<span className="text-xs">🗄️</span>
 						<div>
-							<div className="text-sm font-medium">MySQL-主库</div>
+							<div className="text-sm font-medium">MySQL-Primary</div>
 							<div className="text-xs text-gray-500">mysql://localhost:3306</div>
 						</div>
 					</div>
 					<div className="flex gap-1">
 						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							测试
+							Test
 						</button>
 						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-							编辑
+							Edit
 						</button>
 					</div>
 				</div>
@@ -409,16 +409,16 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 					<div className="flex items-center gap-2">
 						<span className="text-xs">🗄️</span>
 						<div>
-							<div className="text-sm font-medium">Doris-分析库</div>
+							<div className="text-sm font-medium">Doris-Analytics</div>
 							<div className="text-xs text-gray-500">doris://localhost:8030</div>
 						</div>
 					</div>
 					<div className="flex gap-1">
 						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							测试
+							Test
 						</button>
 						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-							编辑
+							Edit
 						</button>
 					</div>
 				</div>
@@ -427,7 +427,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 			{/* 添加新数据库 */}
 			<div className="border-t pt-3">
 				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
-					+ 添加数据库连接
+					+ Add Database Connection
 				</button>
 			</div>
 		</div>
@@ -460,11 +460,11 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 			<div className={`${isCollapsed ? 'w-16' : 'w-64'} bg-white border-r border-gray-200 flex flex-col h-full transition-all duration-300`}>
 				{/* Header */}
 				<div className="p-4 border-b border-gray-200 flex items-center justify-between">
-					{!isCollapsed && <h2 className="text-lg font-semibold text-gray-800">管理中心</h2>}
+					{!isCollapsed && <h2 className="text-lg font-semibold text-gray-800">Management Center</h2>}
 					<button
 						onClick={() => setIsCollapsed(!isCollapsed)}
 						className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-						title={isCollapsed ? "展开菜单" : "收起菜单"}
+						title={isCollapsed ? "Expand Menu" : "Collapse Menu"}
 					>
 						<svg className={`w-5 h-5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -531,13 +531,13 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 						<div className="flex items-center gap-3 mb-4">
 							<span className="text-2xl">⚠️</span>
 							<h3 className="text-lg font-semibold text-gray-900">
-								确认删除
+								Confirm Delete
 							</h3>
 						</div>
 						
 						<div className="mb-6">
 							<p className="text-gray-700 mb-2">
-								您确定要删除以下{nodeToDelete.type === 'classification' ? '分类' : '管道'}吗？
+								Are you sure you want to delete the following {nodeToDelete.type === 'classification' ? 'classification' : 'pipeline'}?
 							</p>
 							<div className="bg-gray-50 p-3 rounded border">
 								<div className="flex items-center gap-2">
@@ -555,7 +555,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 							{nodeToDelete.type === 'classification' && nodeToDelete.children.length > 0 && (
 								<div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
 									<p className="text-sm text-red-700">
-										⚠️ 警告：此分类包含 {nodeToDelete.children.length} 个子项目，删除后将无法恢复！
+										⚠️ Warning: This classification contains {nodeToDelete.children.length} sub-items, deletion cannot be undone!
 									</p>
 								</div>
 							)}
@@ -566,13 +566,13 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 								onClick={() => setShowDeleteConfirm(null)}
 								className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors"
 							>
-								取消
+								Cancel
 							</button>
 							<button
 								onClick={() => handleDeleteConfirm(nodeToDelete)}
 								className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
 							>
-								确认删除
+								Confirm Delete
 							</button>
 						</div>
 					</div>

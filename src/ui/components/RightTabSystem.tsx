@@ -88,9 +88,9 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 		console.log('🆕 Creating new tab:', type)
 		const tabId = `${type}-tab`
 		const tabTitles = {
-			config: '配置管理',
-			abi: 'ABI管理',
-			database: '数据库管理'
+			config: 'Configuration Management',
+			abi: 'ABI Management',
+			database: 'Database Management'
 		}
 		const tabIcons = {
 			config: '⚙️',
@@ -139,11 +139,11 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 				setShowDeleteConfirm(null)
 			} else {
 				console.error('❌ 分类删除失败:', response.message)
-				alert(`删除失败: ${response.message}`)
+				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('❌ 分类删除请求失败:', error)
-			alert('删除失败，请重试')
+			alert('Delete failed, please try again')
 		}
 	}
 
@@ -163,11 +163,11 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 				}
 			} else {
 				console.error('❌ 管道删除失败:', response.message)
-				alert(`删除失败: ${response.message}`)
+				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('❌ 管道删除请求失败:', error)
-			alert('删除失败，请重试')
+			alert('Delete failed, please try again')
 		}
 	}
 
@@ -284,7 +284,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 							<button
 								onClick={() => setShowProtocolInput(`node-${node.id}`)}
 								className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-								title="添加管道"
+								title="Add Pipeline"
 							>
 								+
 							</button>
@@ -293,7 +293,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 							<button
 								onClick={() => handlePipelineClick(node.id)}
 								className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-								title="编辑管道"
+								title="Edit Pipeline"
 							>
 								Edit
 							</button>
@@ -305,7 +305,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 								setShowDeleteConfirm(node.id)
 							}}
 							className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-							title={node.type === 'classification' ? '删除分类' : '删除管道'}
+							title={node.type === 'classification' ? 'Delete Classification' : 'Delete Pipeline'}
 						>
 							🗑️
 						</button>
@@ -365,12 +365,12 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 			{/* 左侧：树形结构 */}
 			<div className="w-80 border-r border-gray-200 flex flex-col">
 				<div className="p-4 border-b border-gray-200">
-					<h3 className="text-lg font-semibold">配置管理</h3>
+					<h3 className="text-lg font-semibold">Configuration Management</h3>
 				</div>
 				<div className="flex-1 overflow-auto p-4">
 					{treeLoading ? (
 						<div className="text-center py-8 text-gray-500">
-							加载中...
+							Loading...
 						</div>
 					) : (
 						<div className="space-y-1">
@@ -403,9 +403,9 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 										<div className="flex items-center gap-2 text-blue-700">
 											<span className="text-lg">💡</span>
 											<div>
-												<div className="font-medium">开始配置新管道</div>
+												<div className="font-medium">Start Configuring New Pipeline</div>
 												<div className="text-sm text-blue-600">
-													您可以直接在这里配置，或者点击左侧树形结构中的管道节点加载现有配置
+													You can configure directly here, or click on pipeline nodes in the left tree structure to load existing configurations
 												</div>
 											</div>
 										</div>
@@ -425,10 +425,10 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 	// 渲染ABI管理内容
 	const renderAbiManagement = () => (
 		<div className="p-4">
-			<h3 className="text-lg font-semibold mb-4">ABI管理</h3>
+			<h3 className="text-lg font-semibold mb-4">ABI Management</h3>
 			<div className="space-y-3">
 				<div className="text-sm text-gray-600 mb-4">
-					管理智能合约 ABI 文件
+					Manage smart contract ABI files
 				</div>
 				
 				{/* ABI 文件列表 */}
@@ -438,15 +438,15 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 							<span className="text-lg">📄</span>
 							<div>
 								<div className="font-medium">ERC20.json</div>
-								<div className="text-xs text-gray-500">标准ERC20代币合约</div>
+								<div className="text-xs text-gray-500">Standard ERC20 token contract</div>
 							</div>
 						</div>
 						<div className="flex gap-2">
 							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								查看
+								View
 							</button>
 							<button className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-								删除
+								Delete
 							</button>
 						</div>
 					</div>
@@ -456,15 +456,15 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 							<span className="text-lg">📄</span>
 							<div>
 								<div className="font-medium">Uniswap.json</div>
-								<div className="text-xs text-gray-500">Uniswap V3 路由合约</div>
+								<div className="text-xs text-gray-500">Uniswap V3 router contract</div>
 							</div>
 						</div>
 						<div className="flex gap-2">
 							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								查看
+								View
 							</button>
 							<button className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-								删除
+								Delete
 							</button>
 						</div>
 					</div>
@@ -473,7 +473,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 				{/* 上传新ABI */}
 				<div className="border-t pt-4">
 					<button className="w-full text-sm px-4 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 border border-green-300 font-medium">
-						+ 上传新 ABI 文件
+						+ Upload New ABI File
 					</button>
 				</div>
 			</div>
@@ -483,10 +483,10 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 	// 渲染数据库管理内容
 	const renderDatabaseManagement = () => (
 		<div className="p-4">
-			<h3 className="text-lg font-semibold mb-4">数据库管理</h3>
+			<h3 className="text-lg font-semibold mb-4">Database Management</h3>
 			<div className="space-y-3">
 				<div className="text-sm text-gray-600 mb-4">
-					管理数据库连接和配置
+					Manage database connections and configurations
 				</div>
 				
 				{/* 数据库连接列表 */}
@@ -495,17 +495,17 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 						<div className="flex items-center gap-3">
 							<span className="text-lg">🗄️</span>
 							<div>
-								<div className="font-medium">MySQL-主库</div>
+								<div className="font-medium">MySQL-Primary</div>
 								<div className="text-xs text-gray-500">mysql://localhost:3306</div>
-								<div className="text-xs text-green-600">● 连接正常</div>
+								<div className="text-xs text-green-600">● Connection Normal</div>
 							</div>
 						</div>
 						<div className="flex gap-2">
 							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								测试
+								Test
 							</button>
 							<button className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-								编辑
+								Edit
 							</button>
 						</div>
 					</div>
@@ -514,17 +514,17 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 						<div className="flex items-center gap-3">
 							<span className="text-lg">🗄️</span>
 							<div>
-								<div className="font-medium">Doris-分析库</div>
+								<div className="font-medium">Doris-Analytics</div>
 								<div className="text-xs text-gray-500">doris://localhost:8030</div>
-								<div className="text-xs text-yellow-600">● 连接中断</div>
+								<div className="text-xs text-yellow-600">● Connection Interrupted</div>
 							</div>
 						</div>
 						<div className="flex gap-2">
 							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								测试
+								Test
 							</button>
 							<button className="text-xs px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-								编辑
+								Edit
 							</button>
 						</div>
 					</div>
@@ -533,7 +533,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 				{/* 添加新数据库 */}
 				<div className="border-t pt-4">
 					<button className="w-full text-sm px-4 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 border border-green-300 font-medium">
-						+ 添加数据库连接
+						+ Add Database Connection
 					</button>
 				</div>
 			</div>

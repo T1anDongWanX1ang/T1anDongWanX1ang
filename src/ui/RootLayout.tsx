@@ -7,15 +7,15 @@ import { useRef, useState } from 'react'
 export default function RootLayout() {
 	const { pathname } = useLocation()
 	const isChainConfig = pathname === '/chain-config'
-	const [showTabSystem, setShowTabSystem] = useState(true) // 默认显示Tab系统
+	const [showTabSystem, setShowTabSystem] = useState(true) // Default show Tab system
 	const tabSystemRef = useRef<any>(null)
 
 
 	// 处理左侧菜单点击，打开Tab
 	const handleOpenTab = (tabType: 'config' | 'abi' | 'database', pipelineId?: number) => {
 		setShowTabSystem(true)
-		// 这里需要调用RightTabSystem的openTab方法
-		// 由于React的限制，我们需要通过ref来调用
+		// Need to call RightTabSystem's openTab method here
+		// Due to React limitations, we need to call through ref
 		if (tabSystemRef.current) {
 			tabSystemRef.current.openTab(tabType, pipelineId)
 		}

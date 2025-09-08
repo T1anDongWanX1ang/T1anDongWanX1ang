@@ -36,7 +36,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			setBootstrapServers(kafkaProducerComponent.bootstrap_servers || '')
 			setTopic(kafkaProducerComponent.topic || '')
 			
-			setValidationMessage(`✅ 已从管道 ${currentPipelineId} 自动加载Kafka配置\nBootstrap Servers: ${kafkaProducerComponent.bootstrap_servers || 'N/A'}\nTopic: ${kafkaProducerComponent.topic || 'N/A'}`)
+			setValidationMessage(`✅ Kafka configuration automatically loaded from pipeline ${currentPipelineId}\nBootstrap Servers: ${kafkaProducerComponent.bootstrap_servers || 'N/A'}\nTopic: ${kafkaProducerComponent.topic || 'N/A'}`)
 			
 			setTimeout(() => {
 				setValidationMessage('')
@@ -47,9 +47,9 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			setTopic('')
 			
 			if (components.length === 0) {
-				setValidationMessage('📝 当前管道暂无配置数据，请开始配置')
+				setValidationMessage('📝 Current pipeline has no configuration data, please start configuration')
 			} else {
-				setValidationMessage('📝 当前管道没有Kafka Producer组件，请开始配置')
+				setValidationMessage('📝 Current pipeline has no Kafka Producer component, please start configuration')
 			}
 			
 			setTimeout(() => {
@@ -61,12 +61,12 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 	// 验证表单数据
 	const validateForm = () => {
 		if (!bootstrapServers.trim()) {
-			setValidationMessage('❌ 请输入Bootstrap Servers')
+			setValidationMessage('❌ Please enter Bootstrap Servers')
 			return false
 		}
 		
 		if (!topic.trim()) {
-			setValidationMessage('❌ 请输入Topic名称')
+			setValidationMessage('❌ Please enter Topic name')
 			return false
 		}
 		
@@ -76,14 +76,14 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 		const invalidServers = servers.filter(server => !serverPattern.test(server))
 		
 		if (invalidServers.length > 0) {
-			setValidationMessage(`❌ Bootstrap Servers格式错误: ${invalidServers.join(', ')}\n正确格式: host:port 或 host1:port1,host2:port2`)
+			setValidationMessage(`❌ Bootstrap Servers format error: ${invalidServers.join(', ')}\nCorrect format: host:port or host1:port1,host2:port2`)
 			return false
 		}
 		
 		// 验证Topic名称格式（简单验证）
 		const topicPattern = /^[a-zA-Z0-9._-]+$/
 		if (!topicPattern.test(topic)) {
-			setValidationMessage('❌ Topic名称格式错误，只能包含字母、数字、点、下划线和连字符')
+			setValidationMessage('❌ Topic name format error, can only contain letters, numbers, dots, underscores and hyphens')
 			return false
 		}
 		
@@ -109,7 +109,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			
 			// 模拟成功响应
 			setConnectionStatus('success')
-			setValidationMessage('✅ Kafka连接测试成功！')
+			setValidationMessage('✅ Kafka connection test successful!')
 			
 			setTimeout(() => {
 				setValidationMessage('')
@@ -118,7 +118,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 		} catch (error) {
 			console.error('Kafka connection test failed:', error)
 			setConnectionStatus('error')
-			setValidationMessage('❌ Kafka连接测试失败，请检查配置')
+			setValidationMessage('❌ Kafka connection test failed, please check configuration')
 			
 			setTimeout(() => {
 				setValidationMessage('')
@@ -154,9 +154,9 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			
 			// 检查是否是更新还是新增
 			const existingComponent = components.find(c => c.name === "step3")
-			const action = existingComponent ? "更新" : "添加"
+			const action = existingComponent ? "updated" : "added"
 			
-			setValidationMessage(`✅ Kafka Producer配置保存成功！\n已${action}到全局组件列表\nBootstrap Servers: ${bootstrapServers.trim()}\nTopic: ${topic.trim()}`)
+			setValidationMessage(`✅ Kafka Producer configuration saved successfully!\n${action} to global component list\nBootstrap Servers: ${bootstrapServers.trim()}\nTopic: ${topic.trim()}`)
 			
 			// 调试信息：显示当前 components 状态
 			console.log('🎯 Step3 保存成功!')
@@ -169,7 +169,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 				// 这里可以添加跳转逻辑
 			}, 1500)
 		} catch (error) {
-			setValidationMessage('❌ 保存失败，请重试')
+			setValidationMessage('❌ Save failed, please try again')
 			// 如果保存失败且是从Link点击触发的，阻止跳转
 			if (event) {
 				event.preventDefault()
@@ -212,7 +212,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold">Step 3: Kafka Producer</h2>
 				<div className="text-sm text-gray-600">
-					Step 3: Kafka生产者配置
+					Step 3: Kafka Producer Configuration
 				</div>
 			</div>
 
@@ -234,12 +234,12 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 						<input 
 							type="text" 
 							className="input w-full" 
-							placeholder="localhost:9092 或 broker1:9092,broker2:9092"
+							placeholder="localhost:9092 or broker1:9092,broker2:9092"
 							value={bootstrapServers}
 							onChange={(e) => setBootstrapServers(e.target.value)}
 						/>
 						<div className="mt-1 text-xs text-gray-500">
-							Kafka集群的Bootstrap服务器地址，多个地址用逗号分隔
+							Kafka cluster Bootstrap server addresses, separate multiple addresses with commas
 						</div>
 					</div>
 
@@ -255,18 +255,18 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 							onChange={(e) => setTopic(e.target.value)}
 						/>
 						<div className="mt-1 text-xs text-gray-500">
-							消息发送的目标Topic名称
+							Target Topic name for message sending
 						</div>
 					</div>
 
 					{/* 连接状态显示 */}
 					<div className="flex items-center gap-2">
 						<span className={`text-sm font-medium ${getConnectionStatusColor()}`}>
-							{getConnectionStatusIcon()} 连接状态: 
-							{connectionStatus === 'idle' && ' 未测试'}
-							{connectionStatus === 'testing' && ' 测试中...'}
-							{connectionStatus === 'success' && ' 连接成功'}
-							{connectionStatus === 'error' && ' 连接失败'}
+							{getConnectionStatusIcon()} Connection Status: 
+							{connectionStatus === 'idle' && ' Not tested'}
+							{connectionStatus === 'testing' && ' Testing...'}
+							{connectionStatus === 'success' && ' Connected'}
+							{connectionStatus === 'error' && ' Connection failed'}
 						</span>
 					</div>
 				</div>
@@ -276,7 +276,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 			<Box title="Connection Test">
 				<div className="space-y-4">
 					<div className="text-sm text-gray-600">
-						在保存配置前，建议先测试Kafka连接以确保配置正确
+						It is recommended to test Kafka connection before saving configuration to ensure correct setup
 					</div>
 					
 					<button 
@@ -284,7 +284,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 						onClick={testKafkaConnection}
 						disabled={isLoading || !bootstrapServers.trim() || !topic.trim()}
 					>
-						{connectionStatus === 'testing' ? '测试中...' : '测试连接'}
+						{connectionStatus === 'testing' ? 'Testing...' : 'Test Connection'}
 					</button>
 				</div>
 			</Box>
@@ -307,7 +307,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 					onClick={handleSaveKafkaConfig}
 					disabled={isLoading}
 				>
-					{isLoading ? '保存中...' : 'Save Kafka Config'}
+					{isLoading ? 'Saving...' : 'Save Kafka Config'}
 				</button>
 				<button 
 					className="btn btn-secondary"
@@ -328,7 +328,7 @@ export default function Step3({ onStepChange }: Step3Props = {}) {
 				return kafkaProducerComponent && (
 					<Box title="Current Kafka Configuration" right={
 						<span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">
-							从管道 {currentPipelineId} 加载
+							Loaded from pipeline {currentPipelineId}
 						</span>
 					}>
 						<div className="space-y-2">

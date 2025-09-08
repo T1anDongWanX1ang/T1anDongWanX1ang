@@ -23,8 +23,8 @@ export default function Step4() {
 	const [customLogData, setCustomLogData] = useState('')
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	
-	const currentProtocol = components.find(c => c.name === "step1") // 从 components 获取 step1 数据
-	const step2Component = components.find(c => c.name === "step2") // 从 components 获取 step2 数据
+	const currentProtocol = components.find(c => c.name === "step1") // Get step1 data from components
+	const step2Component = components.find(c => c.name === "step2") // Get step2 data from components
 	const eventMappings = step2Component?.dict_mappers || []
 
 	// 处理日志文件上传
@@ -50,7 +50,7 @@ export default function Step4() {
 		if (!logContent.trim() && !customLogData.trim()) {
 			setValidationResults(prev => ({
 				...prev,
-				logs: { valid: false, errors: ['请提供日志内容'], warnings: [], message: '日志内容为空' }
+				logs: { valid: false, errors: ['Please provide log content'], warnings: [], message: 'Log content is empty' }
 			}))
 			return
 		}
@@ -68,14 +68,14 @@ export default function Step4() {
 					valid: response.success && response.data.valid,
 					errors: response.data.errors || [],
 					warnings: response.data.warnings || [],
-					message: response.data.message || '日志验证完成'
+					message: response.data.message || 'Log validation completed'
 				}
 			}))
 		} catch (error) {
 			console.error('Log validation failed:', error)
 			setValidationResults(prev => ({
 				...prev,
-				logs: { valid: false, errors: ['日志验证失败'], warnings: [], message: '网络错误或服务异常' }
+				logs: { valid: false, errors: ['Log validation failed'], warnings: [], message: 'Network error or service exception' }
 			}))
 		} finally {
 			setIsLoading(false)
@@ -88,7 +88,7 @@ export default function Step4() {
 		if (totalMappingRules === 0) {
 			setValidationResults(prev => ({
 				...prev,
-				mapping: { valid: false, errors: ['没有可验证的字段映射规则'], warnings: [], message: '请先在Step2中配置字段映射' }
+				mapping: { valid: false, errors: ['No field mapping rules to validate'], warnings: [], message: 'Please configure field mapping in Step2 first' }
 			}))
 			return
 		}
@@ -110,14 +110,14 @@ export default function Step4() {
 					valid: response.success && response.data.valid,
 					errors: response.data.errors || [],
 					warnings: response.data.warnings || [],
-					message: response.data.message || '字段映射验证完成'
+					message: response.data.message || 'Field mapping validation completed'
 				}
 			}))
 		} catch (error) {
 			console.error('Field mapping validation failed:', error)
 			setValidationResults(prev => ({
 				...prev,
-				mapping: { valid: false, errors: ['字段映射验证失败'], warnings: [], message: '网络错误或服务异常' }
+				mapping: { valid: false, errors: ['Field mapping validation failed'], warnings: [], message: 'Network error or service exception' }
 			}))
 		} finally {
 			setIsLoading(false)
@@ -154,7 +154,7 @@ export default function Step4() {
 				overall: {
 					valid: overallValid,
 					score,
-					message: overallValid ? '所有验证通过' : '存在验证问题，请检查详情'
+					message: overallValid ? 'All validations passed' : 'Validation issues exist, please check details'
 				}
 			}))
 		} catch (error) {

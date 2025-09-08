@@ -59,7 +59,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			const eventCount = eventMonitorComponent.events_to_monitor?.length || 0
 			const contractShort = eventMonitorComponent.contract_address?.slice(0, 10) || 'N/A'
 			
-			setValidationMessage(`✅ 已从管道 ${currentPipelineId} 自动加载配置数据\n合约地址: ${contractShort}...\nABI路径: ${eventMonitorComponent.abi_path || 'N/A'}\n监控事件: ${eventCount}个`)
+			setValidationMessage(`✅ Configuration data automatically loaded from pipeline ${currentPipelineId}\nContract address: ${contractShort}...\nABI path: ${eventMonitorComponent.abi_path || 'N/A'}\nMonitoring events: ${eventCount} events`)
 			
 			setTimeout(() => {
 				setValidationMessage('')
@@ -73,9 +73,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			setDynamicEvents([])
 			
 			if (components.length === 0) {
-				setValidationMessage('📝 当前管道暂无配置数据，请开始配置')
+				setValidationMessage('📝 Current pipeline has no configuration data, please start configuration')
 			} else {
-				setValidationMessage('📝 当前管道没有事件监控组件，请开始配置')
+				setValidationMessage('📝 Current pipeline has no event monitoring component, please start configuration')
 			}
 			
 			setTimeout(() => {
@@ -110,12 +110,12 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		if (!file) return
 
 		if (!file.name.endsWith('.json')) {
-			setValidationMessage('❌ 请上传JSON格式的ABI文件')
+			setValidationMessage('❌ Please upload ABI file in JSON format')
 			return
 		}
 
 		setIsLoading(true)
-		setValidationMessage('🔄 正在上传文件...')
+		setValidationMessage('🔄 Uploading file...')
 		
 		try {
 			// 首先调用上传接口
@@ -149,19 +149,19 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 					// setSelectedEvents(extractedEvents)
 					
 					// 显示成功提示
-					setValidationMessage('🎉 文件上传成功！ABI解析完成，请选择要监控的事件')
+					setValidationMessage('🎉 File upload successful! ABI parsing completed, please select events to monitor')
 					
 					// 弹出成功提示
-					alert(`🎉 文件上传成功！\n\n文件名: ${uploadResponse.file_name || file.name}\n文件路径: ${filePath}\n文件大小: ${uploadResponse.file_size ? (uploadResponse.file_size / 1024).toFixed(2) + ' KB' : 'N/A'}\n提取到 ${extractedEvents.length} 个事件: ${extractedEvents.join(', ')}`)
+					alert(`🎉 File upload successful!\n\nFile name: ${uploadResponse.file_name || file.name}\nFile path: ${filePath}\nFile size: ${uploadResponse.file_size ? (uploadResponse.file_size / 1024).toFixed(2) + ' KB' : 'N/A'}\nExtracted ${extractedEvents.length} events: ${extractedEvents.join(', ')}`)
 				} else {
-					setValidationMessage('❌ 文件上传成功，但ABI文件格式无效')
+					setValidationMessage('❌ File upload successful, but ABI file format is invalid')
 				}
 			} else {
-				setValidationMessage(`❌ 文件上传失败: ${uploadResponse?.message || '未知错误'}`)
+				setValidationMessage(`❌ File upload failed: ${uploadResponse?.message || 'Unknown error'}`)
 			}
 		} catch (error) {
 			console.error('File upload error:', error)
-			setValidationMessage('❌ 文件上传失败，请重试')
+			setValidationMessage('❌ File upload failed, please try again')
 		} finally {
 			setIsLoading(false)
 		}
@@ -180,7 +180,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 
 	// 添加自定义事件
 	const handleAddCustomEvent = () => {
-		const customEvent = prompt('请输入自定义事件名称:')
+		const customEvent = prompt('Please enter custom event name:')
 		if (customEvent && customEvent.trim() && !selectedEvents.includes(customEvent.trim())) {
 			setSelectedEvents(prev => [...prev, customEvent.trim()])
 		}
@@ -189,22 +189,22 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 	// 验证数据计划
 	const validateDataPlan = () => {
 		if (!contractAddress.trim()) {
-			setValidationMessage('❌ 请输入合约地址')
+			setValidationMessage('❌ Please enter contract address')
 			return false
 		}
 		
 		if (!validateContractAddress(contractAddress)) {
-			setValidationMessage('❌ 合约地址格式无效')
+			setValidationMessage('❌ Invalid contract address format')
 			return false
 		}
 		
 		if (!abiPath.trim()) {
-			setValidationMessage('❌ 请上传或输入ABI文件路径')
+			setValidationMessage('❌ Please upload or enter ABI file path')
 			return false
 		}
 		
 		if (selectedEvents.length === 0) {
-			setValidationMessage('❌ 请至少选择一个要监控的事件')
+			setValidationMessage('❌ Please select at least one event to monitor')
 			return false
 		}
 		
@@ -313,9 +313,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			
 			// 检查是否是更新还是新增
 			const existingComponent = components.find(c => c.name === "step1")
-			const action = existingComponent ? "更新" : "添加"
+			const action = existingComponent ? "updated" : "added"
 			
-			setValidationMessage(`✅ 数据计划保存成功，已${action}到组件列表`)
+			setValidationMessage(`✅ Data plan saved successfully, ${action} to component list`)
 			
 			// 调试信息：显示当前 components 状态
 			console.log('当前 components 列表:', components)
@@ -326,7 +326,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 				// 这里可以添加跳转逻辑
 			}, 1500)
 		} catch (error) {
-			setValidationMessage('❌ 保存失败，请重试')
+			setValidationMessage('❌ Save failed, please try again')
 			// 如果保存失败且是从Link点击触发的，阻止跳转
 			if (event) {
 				event.preventDefault()
@@ -355,7 +355,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold">Step 1: Define Data Plan</h2>
 				<div className="text-sm text-gray-600">
-					Step 1: 数据计划配置
+					Step 1: Data Plan Configuration
 				</div>
 			</div>
 
@@ -383,9 +383,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 						/>
 						<div className="mt-1 text-xs text-gray-500">
 							{contractAddress && (
-								<span className={validateContractAddress(contractAddress) ? 'text-green-600' : 'text-red-600'}>
-									{validateContractAddress(contractAddress) ? '✅ 地址格式正确' : '❌ 地址格式错误'}
-								</span>
+															<span className={validateContractAddress(contractAddress) ? 'text-green-600' : 'text-red-600'}>
+								{validateContractAddress(contractAddress) ? '✅ Address format is correct' : '❌ Invalid address format'}
+							</span>
 							)}
 						</div>
 					</div>
@@ -417,7 +417,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 							className="hidden"
 						/>
 						<div className="mt-1 text-xs text-gray-500">
-							支持JSON格式的ABI文件
+							Supports JSON format ABI files
 						</div>
 						{uploadedFilePath && (
 							<div className="mt-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg shadow-sm">
@@ -429,19 +429,19 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 									</div>
 									<div className="flex-1 min-w-0">
 										<div className="text-sm font-medium text-green-800 mb-1">
-											🎉 文件上传成功
+											🎉 File Upload Successful
 										</div>
 										<div className="text-xs text-green-700 space-y-1">
 											<div>
-												<span className="font-medium">原文件名：</span>
+												<span className="font-medium">Original File Name:</span>
 												<span className="font-mono">{abiFile?.name}</span>
 											</div>
 											<div>
-												<span className="font-medium">服务器路径：</span>
+												<span className="font-medium">Server Path:</span>
 												<span className="font-mono break-all bg-white px-2 py-1 rounded border">{uploadedFilePath}</span>
 											</div>
 											<div>
-												<span className="font-medium">文件大小：</span>
+												<span className="font-medium">File Size:</span>
 												<span>{abiFile ? (abiFile.size / 1024).toFixed(2) + ' KB' : 'N/A'}</span>
 											</div>
 										</div>
@@ -464,22 +464,22 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 					</button>
 					{dynamicEvents.length > 0 && (
 						<span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-							从ABI解析到 {dynamicEvents.length} 个事件
+							{dynamicEvents.length} events parsed from ABI
 						</span>
 					)}
 				</div>
 			}>
 				<div className="space-y-3">
 					<div className="text-sm text-gray-600 mb-3">
-						选择要监控的智能合约事件（至少选择一个）
+						Select smart contract events to monitor (at least one required)
 					</div>
 					
 					{/* 默认事件 */}
 					{defaultEvents.length > 0 && (
 						<div className="mb-4">
 							<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-								<span>📋 常用事件</span>
-								<span className="text-xs text-gray-500">({defaultEvents.length}个)</span>
+								<span>📋 Common Events</span>
+								<span className="text-xs text-gray-500">({defaultEvents.length} events)</span>
 							</div>
 							<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
 								{defaultEvents.map(eventName => (
@@ -501,8 +501,8 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 					{dynamicEvents.length > 0 && (
 						<div className="mb-4">
 							<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-								<span>🔍 ABI解析事件</span>
-								<span className="text-xs text-gray-500">({dynamicEvents.length}个)</span>
+								<span>🔍 ABI Parsed Events</span>
+								<span className="text-xs text-gray-500">({dynamicEvents.length} events)</span>
 							</div>
 							<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
 								{dynamicEvents.map(eventName => (
@@ -523,7 +523,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 					{selectedEvents.length > 0 && (
 						<div className="mt-3 p-3 bg-blue-50 rounded-lg">
 							<div className="text-sm font-medium text-blue-700 mb-2">
-								已选择 {selectedEvents.length} 个事件:
+								Selected {selectedEvents.length} events:
 							</div>
 							<div className="flex flex-wrap gap-2">
 								{selectedEvents.map(eventName => (
@@ -558,7 +558,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 					onClick={handleSaveDataPlan}
 					disabled={isLoading}
 				>
-					{isLoading ? '保存中...' : 'Save Data Plan'}
+					{isLoading ? 'Saving...' : 'Save Data Plan'}
 				</button>
 				<button 
 					className="btn btn-secondary"
@@ -580,7 +580,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 				return eventMonitorComponent && (
 					<Box title="Current Data Plan" right={
 						<span className="text-xs text-gray-500 bg-green-100 px-2 py-1 rounded">
-							从管道 {currentPipelineId} 加载
+							Loaded from pipeline {currentPipelineId}
 						</span>
 					}>
 						<div className="space-y-2">
@@ -651,19 +651,19 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			{selectedEvents.length > 0 && (
 				<Box title="Event Parameters" right={
 					<span className="text-xs text-gray-500 bg-purple-100 px-2 py-1 rounded">
-						{selectedEvents.length} 个事件的参数
+						Parameters for {selectedEvents.length} events
 					</span>
 				}>
 					<div className="space-y-4">
 						<div className="text-sm text-gray-600 mb-3">
-							所有选中事件的字段参数（包括公共字段和事件特定参数）：
+							Field parameters for all selected events (including common fields and event-specific parameters):
 						</div>
 
 						{/* 公共字段 */}
 						<div className="mb-4">
 							<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-								<span>🔗 公共字段</span>
-								<span className="text-xs text-gray-500">(所有事件共有)</span>
+								<span>🔗 Common Fields</span>
+								<span className="text-xs text-gray-500">(shared by all events)</span>
 							</div>
 							<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
 								{[
@@ -693,8 +693,8 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 							return (
 								<div key={`event-${eventIndex}`} className="mb-4">
 									<div className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-										<span>📋 {eventName} 事件参数</span>
-										<span className="text-xs text-gray-500">({eventSpecificParams.length}个)</span>
+										<span>📋 {eventName} Event Parameters</span>
+										<span className="text-xs text-gray-500">({eventSpecificParams.length} parameters)</span>
 									</div>
 									{eventSpecificParams.length > 0 ? (
 										<div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -709,7 +709,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 										</div>
 									) : (
 										<div className="text-sm text-gray-500 italic">
-											暂无参数（请确保已上传正确的 ABI 文件）
+											No parameters available (please ensure correct ABI file is uploaded)
 										</div>
 									)}
 								</div>
@@ -718,9 +718,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 
 						<div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
 							<div className="text-xs text-yellow-800">
-								<strong>说明：</strong> 
-								<span className="text-green-800">绿色</span> 表示公共字段（所有事件共有），
-								<span className="text-blue-800">蓝色</span> 表示事件特定参数 (args.*)
+								<strong>Note:</strong> 
+								<span className="text-green-800">Green</span> indicates common fields (shared by all events),
+								<span className="text-blue-800">Blue</span> indicates event-specific parameters (args.*)
 							</div>
 						</div>
 					</div>

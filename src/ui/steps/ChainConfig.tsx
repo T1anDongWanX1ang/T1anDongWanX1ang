@@ -90,7 +90,7 @@ export default function ChainConfig() {
 				// 更新本地状态
 				// 这里应该调用AppState中的更新函数
 				setEditingChain(null)
-				setTestResults(prev => ({ ...prev, [editingChain!]: { success: true, message: '配置已保存' } }))
+				setTestResults(prev => ({ ...prev, [editingChain!]: { success: true, message: 'Configuration saved' } }))
 			}
 		} catch (error) {
 			console.error('Save chain config failed:', error)
@@ -105,7 +105,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: 'Testing...' } }))
 
 		try {
 			const startTime = Date.now()
@@ -124,7 +124,7 @@ export default function ChainConfig() {
 					...prev,
 					[chainId]: {
 						success: true,
-						message: 'RPC连接成功',
+						message: 'RPC connection successful',
 						latency,
 						blockHeight: (response as any).data?.block_height,
 						details: (response as any).data
@@ -135,7 +135,7 @@ export default function ChainConfig() {
 					...prev,
 					[chainId]: {
 						success: false,
-						message: `RPC连接失败: ${(response as any).data?.message}`,
+						message: `RPC connection failed: ${(response as any).data?.message}`,
 						latency,
 						details: (response as any).data
 					}
@@ -147,7 +147,7 @@ export default function ChainConfig() {
 				...prev,
 				[chainId]: {
 					success: false,
-					message: 'RPC连接测试异常',
+					message: 'RPC connection test exception',
 					latency: 0,
 					details: { error: (error as any).message }
 				}
@@ -163,7 +163,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: 'Testing...' } }))
 
 		try {
 			const startTime = Date.now()
@@ -220,7 +220,7 @@ export default function ChainConfig() {
 		if (!chain) return
 
 		setIsLoading(true)
-		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: '测试中...' } }))
+		setTestResults(prev => ({ ...prev, [chainId]: { success: false, message: 'Testing...' } }))
 
 		try {
 			// 并行测试RPC和WebSocket连接

@@ -42,7 +42,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 			// 从保存的数据中恢复多事件映射规则
 			console.log('🔄 从全局 components 恢复 Step2 多事件数据:', step2Component)
 			setEventMappings(step2Component.dict_mappers)
-			setSaveMessage(`✅ 已从管道配置中恢复 ${step2Component.dict_mappers.length} 个事件的映射规则`)
+			setSaveMessage(`✅ Restored mapping rules for ${step2Component.dict_mappers.length} events from pipeline configuration`)
 			setTimeout(() => setSaveMessage(''), 6000)
 		} else if (eventsToMonitor.length > 0) {
 			// 如果没有保存的数据，为每个事件创建默认的映射规则
@@ -54,7 +54,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 			}))
 			
 			setEventMappings(defaultEventMappings)
-			setSaveMessage(`✅ 已为 ${eventsToMonitor.length} 个事件自动生成默认映射规则`)
+			setSaveMessage(`✅ Auto-generated default mapping rules for ${eventsToMonitor.length} events`)
 			setTimeout(() => setSaveMessage(''), 6000)
 		} else {
 			// 没有任何数据可以恢复或生成
@@ -98,6 +98,11 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 			{
 				source_key: "chain",
 				target_key: "chain",
+				transformer: null
+			},
+			{
+				source_key: "chain_id",
+				target_key: "chain_id",
 				transformer: null
 			}
 		]
@@ -281,13 +286,13 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 	// 清空当前事件的所有映射规则
 	const handleBatchDelete = () => {
 		updateCurrentEventMapping([])
-		setParsingMessage('✅ 已清空当前事件的所有映射规则')
+		setParsingMessage('✅ Cleared all mapping rules for current event')
 		setTimeout(() => setParsingMessage(''), 3000)
 	}
 
 	// 添加新事件
 	const addNewEvent = () => {
-		const eventName = prompt('请输入新事件名称:')
+		const eventName = prompt('Please enter new event name:')
 		if (!eventName || eventName.trim() === '') return
 
 		const newEventMapping: EventMappingRule = {
@@ -297,20 +302,20 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 
 		setEventMappings(prev => [...prev, newEventMapping])
 		setCurrentEventIndex(eventMappings.length) // 切换到新添加的事件
-		setParsingMessage(`✅ 已添加新事件: ${eventName}`)
+		setParsingMessage(`✅ Added new event: ${eventName}`)
 		setTimeout(() => setParsingMessage(''), 3000)
 	}
 
 	// 删除事件
 	const removeEvent = (eventIndex: number) => {
 		if (eventMappings.length <= 1) {
-			setParsingMessage('❌ 至少需要保留一个事件配置')
+			setParsingMessage('❌ At least one event configuration must be kept')
 			setTimeout(() => setParsingMessage(''), 3000)
 			return
 		}
 
 		const eventName = eventMappings[eventIndex].event_name
-		if (confirm(`确定要删除事件 "${eventName}" 及其所有映射规则吗？`)) {
+		if (confirm(`Are you sure you want to delete event "${eventName}" and all its mapping rules?`)) {
 			setEventMappings(prev => prev.filter((_, index) => index !== eventIndex))
 			
 			// 调整当前选中的事件索引
@@ -318,7 +323,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				setCurrentEventIndex(currentEventIndex - 1)
 			}
 			
-			setParsingMessage(`✅ 已删除事件: ${eventName}`)
+			setParsingMessage(`✅ Deleted event: ${eventName}`)
 			setTimeout(() => setParsingMessage(''), 3000)
 		}
 	}
@@ -326,7 +331,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 	// 保存多事件映射配置
 	const handleSaveMapping = async (event?: React.MouseEvent) => {
 		if (eventMappings.length === 0) {
-			setParsingMessage('❌ 请至少配置一个事件的映射规则')
+			setParsingMessage('❌ Please configure mapping rules for at least one event')
 			if (event) event.preventDefault()
 			return
 		}
@@ -334,7 +339,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 		// 验证每个事件至少有一条映射规则
 		const emptyEvents = eventMappings.filter(mapping => mapping.mapping_rules.length === 0)
 		if (emptyEvents.length > 0) {
-			setParsingMessage(`❌ 以下事件没有配置映射规则: ${emptyEvents.map(e => e.event_name).join(', ')}`)
+			setParsingMessage(`❌ The following events have no mapping rules configured: ${emptyEvents.map(e => e.event_name).join(', ')}`)
 			if (event) event.preventDefault()
 			return
 		}
@@ -353,9 +358,9 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 			
 			// 检查是否是更新还是新增
 			const existingComponent = components.find(c => c.name === "step2")
-			const action = existingComponent ? "更新" : "添加"
+			const action = existingComponent ? "updated" : "added"
 			
-			setSaveMessage(`✅ 多事件映射配置保存成功！\n已${action}到全局组件列表\n配置了 ${eventMappings.length} 个事件的映射规则`)
+			setSaveMessage(`✅ Multi-event mapping configuration saved successfully!\n${action} to global component list\nConfigured mapping rules for ${eventMappings.length} events`)
 			
 			// 调试信息
 			console.log('🎯 Step2 多事件映射保存成功!')
@@ -367,7 +372,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				// 这里可以添加跳转逻辑
 			}, 1500)
 		} catch (error) {
-			setSaveMessage('❌ 保存失败，请重试')
+			setSaveMessage('❌ Save failed, please try again')
 			if (event) event.preventDefault()
 		} finally {
 			setIsLoading(false)
@@ -392,7 +397,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 		document.body.removeChild(a)
 		URL.revokeObjectURL(url)
 		
-		setSaveMessage('✅ 多事件映射规则已导出')
+		setSaveMessage('✅ Multi-event mapping rules exported')
 		setTimeout(() => setSaveMessage(''), 3000)
 	}
 
@@ -412,14 +417,14 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				if (importedData.dict_mappers && Array.isArray(importedData.dict_mappers)) {
 					setEventMappings(importedData.dict_mappers)
 					setCurrentEventIndex(0)
-					setSaveMessage(`✅ 已导入 ${importedData.dict_mappers.length} 个事件的映射规则`)
+					setSaveMessage(`✅ Imported mapping rules for ${importedData.dict_mappers.length} events`)
 					setTimeout(() => setSaveMessage(''), 3000)
 				} else {
-					setSaveMessage('❌ 导入文件格式不正确')
+					setSaveMessage('❌ Import file format is incorrect')
 					setTimeout(() => setSaveMessage(''), 3000)
 				}
 			} catch (error) {
-				setSaveMessage('❌ 导入文件解析失败')
+				setSaveMessage('❌ Import file parsing failed')
 				setTimeout(() => setSaveMessage(''), 3000)
 			}
 		}
@@ -434,7 +439,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				<h2 className="text-lg font-semibold">Step 2: Multi-Event Field Mapping</h2>
 				<div className="flex items-center gap-3">
 					<div className="text-sm text-gray-600">
-						Step 2: 多事件字段映射配置
+						Step 2: Multi-Event Field Mapping Configuration
 					</div>
 				</div>
 			</div>
@@ -470,7 +475,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 										<button
 											className="ml-1 text-red-500 hover:text-red-700 text-sm"
 											onClick={() => removeEvent(index)}
-											title="删除事件"
+											title="Delete Event"
 										>
 											×
 										</button>
@@ -480,8 +485,8 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 						</div>
 					) : (
 						<div className="text-center py-8 text-gray-500">
-							<p>暂无事件配置</p>
-							<p className="text-sm mt-2">请先在 Step 1 中配置要监控的事件，或手动添加事件</p>
+							<p>No event configuration</p>
+							<p className="text-sm mt-2">Please configure events to monitor in Step 1 first, or manually add events</p>
 						</div>
 					)}
 				</div>
@@ -544,7 +549,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 												className="input w-full"
 												value={rule.source_key}
 												onChange={(e) => updateMappingRule(index, 'source_key', e.target.value)}
-												placeholder="源字段名"
+												placeholder="Source field name"
 											/>
 										</td>
 										<td className="p-3">
@@ -553,7 +558,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 												className="input w-full"
 												value={rule.target_key}
 												onChange={(e) => updateMappingRule(index, 'target_key', e.target.value)}
-												placeholder="目标字段名"
+												placeholder="Target field name"
 											/>
 										</td>
 										<td className="p-3">
@@ -562,21 +567,21 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 												value={rule.transformer || ''}
 												onChange={(e) => updateMappingRule(index, 'transformer', e.target.value || null)}
 											>
-												<option value="">无转换</option>
-												<option value="to_int">转换为整数</option>
-												<option value="to_lowercase">转换为小写</option>
-												<option value="to_uppercase">转换为大写</option>
-												<option value="wei_to_ether">Wei转Ether</option>
-												<option value="timestamp_to_date">时间戳转日期</option>
+												<option value="">No transformation</option>
+												<option value="to_int">Convert to integer</option>
+												<option value="to_lowercase">Convert to lowercase</option>
+												<option value="to_uppercase">Convert to uppercase</option>
+												<option value="wei_to_ether">Wei to Ether</option>
+												<option value="timestamp_to_date">Timestamp to date</option>
 											</select>
 										</td>
 										<td className="p-3">
 											<button
 												className="text-red-500 hover:text-red-700"
 												onClick={() => removeMappingRule(index)}
-												title="删除规则"
+												title="Delete rule"
 											>
-												删除
+												Delete
 											</button>
 										</td>
 									</tr>
@@ -584,7 +589,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 								{currentMapping.mapping_rules.length === 0 && (
 									<tr>
 										<td colSpan={4} className="p-8 text-center text-gray-500">
-											暂无映射规则，点击 "Add Rule" 添加规则
+											No mapping rules, click "Add Rule" to add rules
 										</td>
 									</tr>
 								)}
@@ -612,7 +617,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 					onClick={handleSaveMapping}
 					disabled={isLoading}
 				>
-					{isLoading ? '保存中...' : 'Save Multi-Event Mapping'}
+					{isLoading ? 'Saving...' : 'Save Multi-Event Mapping'}
 				</button>
 				<button 
 					className="btn btn-secondary"
