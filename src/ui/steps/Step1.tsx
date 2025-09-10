@@ -15,11 +15,35 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 	const [contractAddress, setContractAddress] = useState('')
 	const [abiPath, setAbiPath] = useState('')
 	const [selectedEvents, setSelectedEvents] = useState<string[]>([])
-	const [abiFile, setAbiFile] = useState<File | null>(null)
+	const [selectedAbi, setSelectedAbi] = useState<any>(null)
+	const [abiOptions, setAbiOptions] = useState<Array<{
+		id: number
+		contract_address: string
+		contract_name?: string
+		abi_content: any
+		display_name: string
+	}>>([])
+	const [abiSearchTerm, setAbiSearchTerm] = useState('')
+	const [isAbiDropdownOpen, setIsAbiDropdownOpen] = useState(false)
 	const [abiContent, setAbiContent] = useState('')
 	const [uploadedFilePath, setUploadedFilePath] = useState('')
 	const [dynamicEvents, setDynamicEvents] = useState<string[]>([])
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	const dropdownRef = useRef<HTMLDivElement>(null)
+	
+	// 点击外部关闭下拉框
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+				setIsAbiDropdownOpen(false)
+			}
+		}
+		
+		document.addEventListener('mousedown', handleClickOutside)
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside)
+		}
+	}, [])
 	
 
 	
@@ -84,6 +108,35 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		}
 	}, [components, currentPipelineId])
 
+	// 获取ABI选项列表
+	useEffect(() => {
+		const loadAbiOptions = async () => {
+			try {
+				console.log('🔄 开始加载ABI选项列表...')
+				const response = await api.abi.listAbis({ limit: 100 })
+				console.log('📡 ABI API响应:', response)
+				
+				if (response.success) {
+					console.log('📋 ABI原始数据:', response.data.items)
+					const options = response.data.items.map(item => ({
+						...item,
+						display_name: item.contract_name 
+							? `${item.contract_name} - ${item.contract_address}`
+							: item.contract_address
+					}))
+					console.log('🏷️ 处理后的ABI选项:', options)
+					setAbiOptions(options)
+				} else {
+					console.log('❌ ABI API调用失败:', response)
+				}
+			} catch (error) {
+				console.error('❌ Failed to load ABI options:', error)
+			}
+		}
+		
+		loadAbiOptions()
+	}, [])
+
 	// 常用事件列表（默认 + 动态解析）
 	const defaultEvents: string[] = []
 	
@@ -104,7 +157,64 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		return false
 	}
 
-	// 处理ABI文件上传
+	// 处理ABI选择
+	const handleAbiSelect = (abi: any) => {
+		console.log('🔍 处理ABI选择:', abi)
+		
+		setSelectedAbi(abi)
+		setAbiPath(`abi_id:${abi.id}`) // 使用新的ID格式
+		setContractAddress(abi.contract_address) // 自动填充合约地址
+		setIsAbiDropdownOpen(false)
+		setAbiSearchTerm('')
+		
+		// 解析ABI内容并提取事件
+		try {
+			const abiData = abi.abi_content
+			console.log('📋 ABI数据:', abiData)
+			console.log('📋 ABI数据类型:', typeof abiData, '是否为数组:', Array.isArray(abiData))
+			
+			if (Array.isArray(abiData) && abiData.length > 0) {
+				setAbiContent(JSON.stringify(abiData))
+				
+				// 从ABI中提取所有事件名称
+				const allItems = abiData.map((item, index) => ({ index, type: item.type, name: item.name }))
+				console.log('📋 所有ABI条目:', allItems)
+				
+				const extractedEvents = abiData
+					.filter((item: any) => item.type === 'event')
+					.map((item: any) => item.name)
+					.filter((name: string) => name)
+				
+				console.log('🎯 提取的事件列表:', extractedEvents)
+				setDynamicEvents(extractedEvents)
+				
+				// 提示用户结果
+				if (extractedEvents.length > 0) {
+					setValidationMessage(`✅ ABI selected: ${abi.display_name || abi.contract_address}\nExtracted ${extractedEvents.length} events: ${extractedEvents.join(', ')}\nPlease select events to monitor`)
+				} else {
+					setValidationMessage(`✅ ABI selected: ${abi.display_name || abi.contract_address}\n⚠️  No events found in this ABI. This contract may not emit events.`)
+				}
+				
+				setTimeout(() => {
+					setValidationMessage('')
+				}, 5000)
+			} else {
+				console.log('⚠️ ABI数据不是有效的数组或为空')
+				setValidationMessage('❌ ABI data is not valid or empty')
+			}
+		} catch (error) {
+			console.error('❌ Failed to parse ABI content:', error)
+			setValidationMessage('❌ Failed to parse ABI content')
+		}
+	}
+
+	// 过滤ABI选项（模糊搜索）
+	const filteredAbiOptions = abiOptions.filter(abi => 
+		abi.display_name.toLowerCase().includes(abiSearchTerm.toLowerCase()) ||
+		abi.contract_address.toLowerCase().includes(abiSearchTerm.toLowerCase())
+	)
+
+	// 处理ABI文件上传（保留作为备用功能）
 	const handleAbiFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0]
 		if (!file) return
@@ -115,53 +225,34 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		}
 
 		setIsLoading(true)
-		setValidationMessage('🔄 Uploading file...')
+		setValidationMessage('🔄 Uploading and processing file...')
 		
 		try {
-			// 首先调用上传接口
-			const uploadResponse = await api.file.uploadFile(file)
+			const content = await file.text()
+			const abiData = JSON.parse(content)
 			
-			if (uploadResponse && uploadResponse.success) {
-				// 上传成功，根据实际返回结构获取文件路径
-				const filePath = uploadResponse.file_path || uploadResponse.file_name || file.name
-				setUploadedFilePath(filePath)
-				setAbiPath(filePath)
+			if (Array.isArray(abiData) && abiData.length > 0) {
+				setAbiContent(content)
+				setAbiPath(file.name)
 				
-				// 然后解析ABI内容
-				const content = await file.text()
-				const abiData = JSON.parse(content)
+				// 从ABI中提取所有事件名称
+				const extractedEvents = abiData
+					.filter((item: any) => item.type === 'event')
+					.map((item: any) => item.name)
+					.filter((name: string) => name)
 				
-				// 验证ABI格式
-				if (Array.isArray(abiData) && abiData.length > 0) {
-					setAbiFile(file)
-					setAbiContent(content)
-					
-					// 从ABI中提取所有事件名称
-					const extractedEvents = abiData
-						.filter((item: any) => item.type === 'event')
-						.map((item: any) => item.name)
-						.filter((name: string) => name) // 过滤掉空名称
-					
-					// 更新动态事件列表
-					setDynamicEvents(extractedEvents)
-					
-					// 不自动选择事件，让用户手动选择
-					// setSelectedEvents(extractedEvents)
-					
-					// 显示成功提示
-					setValidationMessage('🎉 File upload successful! ABI parsing completed, please select events to monitor')
-					
-					// 弹出成功提示
-					alert(`🎉 File upload successful!\n\nFile name: ${uploadResponse.file_name || file.name}\nFile path: ${filePath}\nFile size: ${uploadResponse.file_size ? (uploadResponse.file_size / 1024).toFixed(2) + ' KB' : 'N/A'}\nExtracted ${extractedEvents.length} events: ${extractedEvents.join(', ')}`)
-				} else {
-					setValidationMessage('❌ File upload successful, but ABI file format is invalid')
-				}
+				setDynamicEvents(extractedEvents)
+				setValidationMessage('🎉 File processed successfully! Please select events to monitor')
+				
+				setTimeout(() => {
+					setValidationMessage('')
+				}, 5000)
 			} else {
-				setValidationMessage(`❌ File upload failed: ${uploadResponse?.message || 'Unknown error'}`)
+				setValidationMessage('❌ Invalid ABI file format')
 			}
 		} catch (error) {
-			console.error('File upload error:', error)
-			setValidationMessage('❌ File upload failed, please try again')
+			console.error('File processing error:', error)
+			setValidationMessage('❌ Failed to process ABI file')
 		} finally {
 			setIsLoading(false)
 		}
@@ -198,8 +289,8 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			return false
 		}
 		
-		if (!abiPath.trim()) {
-			setValidationMessage('❌ Please upload or enter ABI file path')
+		if (!selectedAbi && !abiPath.trim()) {
+			setValidationMessage('❌ Please select an ABI or upload ABI file')
 			return false
 		}
 		
@@ -343,7 +434,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		setContractAddress('')
 		setAbiPath('')
 		setSelectedEvents([])
-		setAbiFile(null)
+		setSelectedAbi(null)
+		setAbiSearchTerm('')
+		setIsAbiDropdownOpen(false)
 		setAbiContent('')
 		setUploadedFilePath('')
 		setDynamicEvents([])
@@ -392,23 +485,66 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							ABI File *
+							Smart ABI Selection *
 						</label>
-						<div className="flex gap-2">
+						<div className="relative" ref={dropdownRef}>
 							<input 
 								type="text" 
-								className="input flex-1" 
-								placeholder="ABI file path or upload file"
-								value={abiPath}
-								onChange={(e) => setAbiPath(e.target.value)}
+								className="input w-full pr-10" 
+								placeholder="Search contracts by name or address..."
+								value={abiSearchTerm}
+								onChange={(e) => {
+									setAbiSearchTerm(e.target.value)
+									setIsAbiDropdownOpen(true)
+								}}
+								onFocus={() => setIsAbiDropdownOpen(true)}
 							/>
+							<button
+								className="absolute inset-y-0 right-0 px-3 flex items-center"
+								onClick={() => setIsAbiDropdownOpen(!isAbiDropdownOpen)}
+							>
+								<svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isAbiDropdownOpen ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"} />
+								</svg>
+							</button>
+							
+							{isAbiDropdownOpen && (
+								<div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+									{filteredAbiOptions.length > 0 ? (
+										filteredAbiOptions.map((abi) => (
+											<div
+												key={abi.id}
+												className="px-4 py-2 cursor-pointer hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+												onClick={() => handleAbiSelect(abi)}
+											>
+												<div className="font-medium text-gray-900 truncate">
+													{abi.contract_name || 'Unnamed Contract'}
+												</div>
+												<div className="text-sm text-gray-500 truncate">
+													{abi.contract_address}
+												</div>
+											</div>
+										))
+									) : (
+										<div className="px-4 py-2 text-gray-500 text-center">
+											{abiSearchTerm ? 'No matching contracts found' : 'Loading...'}
+										</div>
+									)}
+								</div>
+							)}
+						</div>
+						
+						<div className="mt-1 text-xs text-gray-500 flex items-center justify-between">
+							<span>Select from {abiOptions.length} available smart contracts</span>
 							<button 
-								className="btn btn-secondary"
+								className="text-blue-600 hover:text-blue-800 underline"
 								onClick={() => fileInputRef.current?.click()}
 							>
-								Upload
+								Upload new ABI
 							</button>
 						</div>
+						
+						{/* 隐藏的文件上传（备用功能）*/}
 						<input 
 							ref={fileInputRef}
 							type="file" 
@@ -416,33 +552,31 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 							onChange={handleAbiFileUpload}
 							className="hidden"
 						/>
-						<div className="mt-1 text-xs text-gray-500">
-							Supports JSON format ABI files
-						</div>
-						{uploadedFilePath && (
-							<div className="mt-2 p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg shadow-sm">
+						
+						{selectedAbi && (
+							<div className="mt-2 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm">
 								<div className="flex items-start gap-2">
-									<div className="flex-shrink-0 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mt-0.5">
+									<div className="flex-shrink-0 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center mt-0.5">
 										<svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 										</svg>
 									</div>
 									<div className="flex-1 min-w-0">
-										<div className="text-sm font-medium text-green-800 mb-1">
-											🎉 File Upload Successful
+										<div className="text-sm font-medium text-blue-800 mb-1">
+											✅ Smart Contract Selected
 										</div>
-										<div className="text-xs text-green-700 space-y-1">
+										<div className="text-xs text-blue-700 space-y-1">
 											<div>
-												<span className="font-medium">Original File Name:</span>
-												<span className="font-mono">{abiFile?.name}</span>
+												<span className="font-medium">Contract Name:</span>
+												<span className="ml-1">{selectedAbi.contract_name || 'Unnamed Contract'}</span>
 											</div>
 											<div>
-												<span className="font-medium">Server Path:</span>
-												<span className="font-mono break-all bg-white px-2 py-1 rounded border">{uploadedFilePath}</span>
+												<span className="font-medium">Contract Address:</span>
+												<span className="font-mono break-all bg-white px-2 py-1 rounded border ml-1">{selectedAbi.contract_address}</span>
 											</div>
 											<div>
-												<span className="font-medium">File Size:</span>
-												<span>{abiFile ? (abiFile.size / 1024).toFixed(2) + ' KB' : 'N/A'}</span>
+												<span className="font-medium">Available Events:</span>
+												<span className="ml-1">{dynamicEvents.length} events found</span>
 											</div>
 										</div>
 									</div>

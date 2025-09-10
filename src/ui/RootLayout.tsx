@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import LeftDataNav from './components/LeftDataNav'
 import RightAISidebar from './components/RightAISidebar'
 import RightTabSystem from './components/RightTabSystem'
+import { ToastContainer, useToast } from './components/Toast'
 import { useRef, useState } from 'react'
 
 export default function RootLayout() {
@@ -9,6 +10,7 @@ export default function RootLayout() {
 	const isChainConfig = pathname === '/chain-config'
 	const [showTabSystem, setShowTabSystem] = useState(true) // Default show Tab system
 	const tabSystemRef = useRef<any>(null)
+	const { toasts, closeToast } = useToast()
 
 
 	// 处理左侧菜单点击，打开Tab
@@ -48,6 +50,9 @@ export default function RootLayout() {
 					<RightAISidebar />
 				</>
 			)}
+			
+			{/* 全局Toast容器 */}
+			<ToastContainer toasts={toasts} onClose={closeToast} />
 		</div>
 	)
 }

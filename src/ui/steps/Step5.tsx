@@ -190,7 +190,7 @@ export default function Step5() {
 		setSelectedTable('')
 		setSelectedColumns([])
 
-		if (configData?.chainConfigs[chainName]) {
+		if (configData?.chainConfigs && configData.chainConfigs[chainName]) {
 			const tables = Object.keys(configData.chainConfigs[chainName].tables)
 			if (tables.length > 0) {
 				setSelectedTable(tables[0])
@@ -202,7 +202,7 @@ export default function Step5() {
 	// 选择表
 	const handleTableSelect = (tableName: string) => {
 		setSelectedTable(tableName)
-		if (configData?.chainConfigs[selectedChain]?.tables[tableName]) {
+		if (configData?.chainConfigs && configData.chainConfigs[selectedChain]?.tables[tableName]) {
 			setSelectedColumns(configData.chainConfigs[selectedChain].tables[tableName].columns)
 		}
 	}
@@ -232,7 +232,13 @@ export default function Step5() {
 		setTestResults(prev => ({ ...prev, kafka: null }))
 
 		try {
+			if (!configData.chainConfigs) {
+				throw new Error('链配置不存在')
+			}
 			const chainConfig = configData.chainConfigs[selectedChain]
+			if (!chainConfig) {
+				throw new Error(`找不到链配置: ${selectedChain}`)
+			}
 			const response = await fieldParsingAPI.testKafkaConnection({
 				host: configData.kafka.servers.split(':')[0],
 				port: parseInt(configData.kafka.servers.split(':')[1]),
@@ -284,7 +290,13 @@ export default function Step5() {
 		setTestResults(prev => ({ ...prev, doris: null }))
 
 		try {
+			if (!configData.chainConfigs) {
+				throw new Error('链配置不存在')
+			}
 			const chainConfig = configData.chainConfigs[selectedChain]
+			if (!chainConfig) {
+				throw new Error(`找不到链配置: ${selectedChain}`)
+			}
 			const response = await fieldParsingAPI.testDorisConnection({
 				host: chainConfig.doris.host,
 				port: parseInt(chainConfig.doris.port),

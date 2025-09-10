@@ -1163,6 +1163,169 @@ export const pipelineAPI = {
 	}
 }
 
+// ABI管理API
+export const abiAPI = {
+	// 获取ABI列表
+	listAbis: async (params?: {
+		contract_address?: string
+		contract_name?: string
+		page?: number
+		limit?: number
+		size?: number
+	}): Promise<{
+		success: boolean
+		data: {
+			items: Array<{
+				id: number
+				contract_address: string
+				contract_name?: string
+				abi_content: any
+				chain_name: string
+				source_type: string
+				created_at: string
+				updated_at: string
+			}>
+			total: number
+			page: number
+			size: number
+			pages: number
+		}
+	}> => {
+		const queryParams = new URLSearchParams()
+		if (params?.contract_address) queryParams.append('contract_address', params.contract_address)
+		if (params?.contract_name) queryParams.append('contract_name', params.contract_name)
+		if (params?.page) queryParams.append('page', params.page.toString())
+		if (params?.size) queryParams.append('size', params.size.toString())
+		if (params?.limit) queryParams.append('size', params.limit.toString()) // 兼容limit参数
+		
+		const endpoint = `${API_ENDPOINTS.abi.list}${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+		
+		try {
+			// 直接调用后端API，返回格式：{total, page, size, items}
+			const backendResponse = await apiRequest<{
+				total: number
+				page: number
+				size: number
+				items: Array<{
+					id: number
+					contract_address: string
+					contract_name?: string
+					abi_content: any
+					chain_name: string
+					source_type: string
+					created_at: string
+					updated_at: string
+				}>
+			}>(endpoint)
+			
+			// 转换为前端期望的格式
+			return {
+				success: true,
+				data: {
+					items: backendResponse.items || [],
+					total: backendResponse.total || 0,
+					page: backendResponse.page || 1,
+					size: backendResponse.size || 10,
+					pages: Math.ceil((backendResponse.total || 0) / (backendResponse.size || 10))
+				}
+			}
+		} catch (error) {
+			console.error('获取ABI列表失败:', error)
+			return {
+				success: false,
+				data: {
+					items: [],
+					total: 0,
+					page: 1,
+					size: 10,
+					pages: 0
+				}
+			}
+		}
+	},
+
+	// 获取单个ABI
+	getAbi: async (id: number): Promise<{
+		success: boolean
+		data: {
+			id: number
+			contract_address: string
+			contract_name?: string
+			abi_content: any
+			chain_id: number
+			created_at: string
+			updated_at: string
+		}
+	}> => {
+		const endpoint = API_ENDPOINTS.abi.get.replace('{id}', id.toString())
+		return apiRequest(endpoint)
+	},
+
+	// 根据地址获取ABI
+	getAbiByAddress: async (contractAddress: string, chainId?: number): Promise<{
+		success: boolean
+		data?: {
+			id: number
+			contract_address: string
+			contract_name?: string
+			abi_content: any
+			chain_id: number
+			created_at: string
+			updated_at: string
+		}
+	}> => {
+		const queryParams = new URLSearchParams()
+		queryParams.append('contract_address', contractAddress)
+		if (chainId) queryParams.append('chain_id', chainId.toString())
+		
+		const endpoint = `${API_ENDPOINTS.abi.list}?${queryParams.toString()}`
+		const response = await apiRequest<{
+			success: boolean
+			data: {
+				items: Array<{
+					id: number
+					contract_address: string
+					contract_name?: string
+					abi_content: any
+					chain_id: number
+					created_at: string
+					updated_at: string
+				}>
+			}
+		}>(endpoint)
+		
+		if (response.success && response.data.items.length > 0) {
+			return {
+				success: true,
+				data: response.data.items[0]
+			}
+		}
+		return { success: false }
+	},
+
+	// 创建ABI
+	createAbi: async (data: {
+		contract_address: string
+		contract_name?: string
+		abi_content: any
+		chain_id: number
+	}): Promise<{
+		success: boolean
+		data: {
+			id: number
+			contract_address: string
+			contract_name?: string
+			abi_content: any
+			chain_id: number
+		}
+	}> => {
+		return apiRequest(API_ENDPOINTS.abi.create, {
+			method: 'POST',
+			body: JSON.stringify(data),
+		})
+	}
+}
+
 // 导出所有API
 export const api = {
 	fieldParsing: fieldParsingAPI,
@@ -1170,5 +1333,6 @@ export const api = {
 	protocol: protocolAPI,
 	validation: validationAPI,
 	file: fileAPI,
-	pipeline: pipelineAPI
+	pipeline: pipelineAPI,
+	abi: abiAPI
 }

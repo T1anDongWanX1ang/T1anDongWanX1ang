@@ -65,6 +65,17 @@ export const API_ENDPOINTS = {
 		getTaskLog: '/api/v1/pipeline/task',
 		deleteClassification: '/api/v1/pipeline/classification/{classification_id}',
 		deletePipeline: '/api/v1/pipeline/{pipeline_id}'
+	},
+
+	// ABI管理相关
+	abi: {
+		list: '/api/v1/abis',
+		get: '/api/v1/abis/{id}',
+		create: '/api/v1/abis',
+		update: '/api/v1/abis/{id}',
+		delete: '/api/v1/abis/{id}',
+		upload: '/api/v1/abis/upload',
+		autoFetch: '/api/v1/abis/auto-fetch'
 	}
 }
 
@@ -81,6 +92,8 @@ export const ERROR_CODES = {
 	401: '未授权访问',
 	403: '禁止访问',
 	404: '接口不存在',
+	409: '记录已存在',
+	422: '处理失败',
 	500: '服务器内部错误',
 	502: '网关错误',
 	503: '服务不可用',

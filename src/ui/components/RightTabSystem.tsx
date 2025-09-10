@@ -9,6 +9,10 @@ import Step3 from '../steps/Step3'
 import Step5 from '../steps/Step5'
 import Step6 from '../steps/Step6'
 import StepNavigation from './StepNavigation'
+import AbiManagement from '../pages/AbiManagement'
+import { AddAbiModal, EditAbiModal, ViewAbiModal, UploadAbiModal } from './AbiModals'
+import { ErrorBoundaryWrapper } from './ErrorBoundary'
+import type { ContractAbi } from '../../services/abiService'
 
 // Tab类型定义
 type TabType = 'config' | 'abi' | 'database'
@@ -52,6 +56,11 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 	const [selectedPipelineId, setSelectedPipelineId] = useState<number | null>(null)
 	const [currentStepType, setCurrentStepType] = useState<'step1' | 'step2' | 'step3' | 'step4' | 'step5'>('step1')
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null)
+	const [showAbiModal, setShowAbiModal] = useState<{
+		type: 'add' | 'edit' | 'view' | 'upload'
+		abi?: ContractAbi
+	} | null>(null)
+	const [abiRefreshTrigger, setAbiRefreshTrigger] = useState(0)
 
 	// 从 API 获取管道树数据
 	const fetchPipelineTree = async () => {
@@ -422,61 +431,25 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 		</div>
 	)
 
+	// 处理ABI模态框打开
+	const handleOpenAbiModal = (type: 'add' | 'edit' | 'view' | 'upload', abi?: ContractAbi) => {
+		setShowAbiModal({ type, abi })
+	}
+
+	// 处理ABI操作成功后的回调（刷新列表）
+	const handleAbiSuccess = () => {
+		setShowAbiModal(null)
+		// 触发ABI列表刷新
+		setAbiRefreshTrigger(prev => prev + 1)
+	}
+
 	// 渲染ABI管理内容
 	const renderAbiManagement = () => (
-		<div className="p-4">
-			<h3 className="text-lg font-semibold mb-4">ABI Management</h3>
-			<div className="space-y-3">
-				<div className="text-sm text-gray-600 mb-4">
-					Manage smart contract ABI files
-				</div>
-				
-				{/* ABI 文件列表 */}
-				<div className="space-y-3">
-					<div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-						<div className="flex items-center gap-3">
-							<span className="text-lg">📄</span>
-							<div>
-								<div className="font-medium">ERC20.json</div>
-								<div className="text-xs text-gray-500">Standard ERC20 token contract</div>
-							</div>
-						</div>
-						<div className="flex gap-2">
-							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								View
-							</button>
-							<button className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-								Delete
-							</button>
-						</div>
-					</div>
-					
-					<div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-						<div className="flex items-center gap-3">
-							<span className="text-lg">📄</span>
-							<div>
-								<div className="font-medium">Uniswap.json</div>
-								<div className="text-xs text-gray-500">Uniswap V3 router contract</div>
-							</div>
-						</div>
-						<div className="flex gap-2">
-							<button className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-								View
-							</button>
-							<button className="text-xs px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200">
-								Delete
-							</button>
-						</div>
-					</div>
-				</div>
-				
-				{/* 上传新ABI */}
-				<div className="border-t pt-4">
-					<button className="w-full text-sm px-4 py-3 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 border border-green-300 font-medium">
-						+ Upload New ABI File
-					</button>
-				</div>
-			</div>
+		<div className="h-full">
+			<AbiManagement 
+				onOpenModal={handleOpenAbiModal} 
+				refreshTrigger={abiRefreshTrigger}
+			/>
 		</div>
 	)
 
@@ -566,16 +539,25 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 
 	// 渲染Tab内容
 	const renderTabContent = (tab: Tab) => {
-		switch (tab.type) {
-			case 'config':
-				return renderConfigManagement()
-			case 'abi':
-				return renderAbiManagement()
-			case 'database':
-				return renderDatabaseManagement()
-			default:
-				return <div className="p-4">未知Tab类型</div>
-		}
+		const content = (() => {
+			switch (tab.type) {
+				case 'config':
+					return renderConfigManagement()
+				case 'abi':
+					return renderAbiManagement()
+				case 'database':
+					return renderDatabaseManagement()
+				default:
+					return <div className="p-4">未知Tab类型</div>
+			}
+		})()
+
+		// 用错误边界包装内容
+		return (
+			<ErrorBoundaryWrapper>
+				{content}
+			</ErrorBoundaryWrapper>
+		)
 	}
 
 	// 暴露openTab方法给父组件
@@ -713,6 +695,42 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 						</div>
 					</div>
 				</div>
+			)}
+
+			{/* ABI模态框 */}
+			{showAbiModal && (
+				<>
+					{showAbiModal.type === 'add' && (
+						<AddAbiModal
+							isOpen={true}
+							onClose={() => setShowAbiModal(null)}
+							onSuccess={handleAbiSuccess}
+						/>
+					)}
+					{showAbiModal.type === 'edit' && showAbiModal.abi && (
+						<EditAbiModal
+							isOpen={true}
+							onClose={() => setShowAbiModal(null)}
+							onSuccess={handleAbiSuccess}
+							abi={showAbiModal.abi}
+						/>
+					)}
+					{showAbiModal.type === 'view' && showAbiModal.abi && (
+						<ViewAbiModal
+							isOpen={true}
+							onClose={() => setShowAbiModal(null)}
+							onSuccess={handleAbiSuccess}
+							abi={showAbiModal.abi}
+						/>
+					)}
+					{showAbiModal.type === 'upload' && (
+						<UploadAbiModal
+							isOpen={true}
+							onClose={() => setShowAbiModal(null)}
+							onSuccess={handleAbiSuccess}
+						/>
+					)}
+				</>
 			)}
 		</>
 	)
