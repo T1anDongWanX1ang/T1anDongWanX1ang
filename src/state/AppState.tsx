@@ -90,6 +90,8 @@ export type EventMonitor = {
 	contract_address: string
 	abi_path: string
 	events_to_monitor: string[]
+	selectedAbi?: any // Add selectedAbi field for Step2 usage
+	method_return_fields?: { [methodName: string]: string[] } // Store method return fields, key is method name
 }
 
 export type DictMapper = {
@@ -105,17 +107,49 @@ export type KafkaProducer = {
 	topic: string
 }
 
+export type ContractMethod = {
+	name: string
+	type: 'function' | 'event' | 'constructor' | 'error' | 'fallback' | 'receive'
+	inputs: Array<{
+		name: string
+		type: string
+		indexed?: boolean | null
+		internal_type?: string | null
+	}>
+	outputs?: Array<{
+		name: string
+		type: string
+		indexed?: boolean | null
+		internal_type?: string | null
+	}> | null
+	state_mutability?: string | null
+	signature?: string | null
+	selector?: string | null
+	anonymous?: boolean | null
+}
+
+export type MethodQuery = {
+	name: string
+	type: "method_query"
+	contract_address: string
+	chain_name: string
+	contract_name?: string | null
+	event_name?: string | null
+	selected_methods: ContractMethod[]
+	query_metadata?: any
+}
+
 type AppState = {
 	chains: ChainTask[]
 	columns: ColumnTask[]
 	components: any[]
-	eventParams: Record<string, string[]> // 存储事件参数，格式为 {'step1': ['param1', 'param2']}
+	eventParams: Record<string, string[]> // Store event parameters, format as {'step1': ['param1', 'param2']}
 
 	// Current selections
 	currentChainId: string
 	currentProtocolId: string
 	currentColumnId: string
-	currentPipelineId: number | null  // 新增：当前管道ID
+	currentPipelineId: number | null  // New: current pipeline ID
 	createChain: (chain: Chain) => void
 	deleteChain: (chainId: string) => void
 	setCurrentChain: (chainId: string) => void
@@ -281,26 +315,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
 	const loadPipelineConfig = async (pipelineId: number) => {
 		try {
-			console.log('🔄 开始加载管道配置，ID:', pipelineId)
+			console.log('🔄 Starting to load pipeline configuration, ID:', pipelineId)
 			const response = await api.pipeline.getConfig(pipelineId)
 			
-			// 首先检查响应是否成功，以及data是否存在
+			// First check if response is successful and data exists
 			if (response.success && response.data && response.data.components && response.data.components.length > 0) {
-				// 成功获取到配置且有组件数据
-				console.log('✅ 管道配置加载成功:', {
+				// Successfully retrieved configuration with component data
+				console.log('✅ Pipeline configuration loaded successfully:', {
 					pipeline_id: response.data.pipeline_id,
 					pipeline_name: response.data.pipeline_name,
 					components_count: response.data.components.length,
 					components: response.data.components
 				})
 				
-				// 设置组件数据
+				// Set component data
 				setComponentsData(response.data.components)
 				
-				// 解析并设置事件参数（如果有event_monitor组件）
+				// Parse and set event parameters (if event_monitor component exists)
 				const eventMonitorComponent = response.data.components.find((c: any) => c.type === 'event_monitor')
 				if (eventMonitorComponent && eventMonitorComponent.events_to_monitor) {
-					// 从组件数据中解析事件参数
+					// Parse event parameters from component data
 					const baseFields = [
 						"event_name",
 						"contract_address", 
@@ -312,8 +346,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 						"chain_id"
 					]
 					
-					// 这里简化处理，如果需要完整的事件参数解析，需要ABI数据
-					// 目前先使用基础字段 + 事件名称作为参数
+					// Simplified processing here, full event parameter parsing would require ABI data
+					// Currently using base fields + event names as parameters
 					const eventParams = [
 						...baseFields,
 						...eventMonitorComponent.events_to_monitor.map((event: string) => `args.${event}_data`)
@@ -324,14 +358,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 						step1: eventParams
 					}))
 					
-					console.log('📋 已设置事件参数:', eventParams)
+					console.log('📋 Event parameters set:', eventParams)
 				}
 				
-				console.log('🎯 管道配置加载完成，组件数据已填充到全局状态')
+				console.log('🎯 Pipeline configuration loading complete, component data filled into global state')
 			} else {
-				// API返回失败、data不存在或components为空的情况
-				console.log('📝 管道配置不存在或为空，清空组件数据')
-				console.log('响应详情:', { 
+				// API returned failure, data doesn't exist, or components is empty
+				console.log('📝 Pipeline configuration does not exist or is empty, clearing component data')
+				console.log('Response details:', { 
 					success: response.success, 
 					message: response.message, 
 					data: response.data,
@@ -340,17 +374,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 					componentsLength: response.data && response.data.components ? response.data.components.length : 0
 				})
 				setComponentsData([])
-				// 清空事件参数
+				// Clear event parameters
 				setEventParamsState(prev => ({
 					...prev,
 					step1: []
 				}))
 			}
 		} catch (error) {
-			// 网络错误或其他错误，也设置为空数组
-			console.error('❌ 加载管道配置失败:', error)
+			// Network error or other errors, also set to empty array
+			console.error('❌ Loading pipeline configuration failed:', error)
 			setComponentsData([])
-			// 清空事件参数
+			// Clear event parameters
 			setEventParamsState(prev => ({
 				...prev,
 				step1: []

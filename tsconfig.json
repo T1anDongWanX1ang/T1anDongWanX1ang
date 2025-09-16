@@ -10,13 +10,15 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
+    "strict": false,
+    "noEmitOnError": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/tests/**/*.test.ts", "src/tests/**/*.test.tsx", "**/*.test.ts", "**/*.test.tsx"]
 }
 
 

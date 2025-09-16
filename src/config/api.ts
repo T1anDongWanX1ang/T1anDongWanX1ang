@@ -76,6 +76,18 @@ export const API_ENDPOINTS = {
 		delete: '/api/v1/abis/{id}',
 		upload: '/api/v1/abis/upload',
 		autoFetch: '/api/v1/abis/auto-fetch'
+	},
+
+	// 转化器预览相关
+	TRANSFORM_PREVIEW: '/api/v1/pipeline/transform/preview',
+
+	// 告警管理相关
+	alerts: {
+		count: '/api/v1/alerts/count',
+		list: '/api/v1/alerts',
+		clearAll: '/api/v1/alerts/clear-all',
+		clearSingle: '/api/v1/alerts/{id}',
+		createTest: '/api/v1/alerts/test'
 	}
 }
 

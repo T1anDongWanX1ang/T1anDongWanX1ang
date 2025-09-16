@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './styles.css'
 import RootLayout from './ui/RootLayout'
 import ChainConfig from './ui/steps/ChainConfig'
+import { AlertManagement } from './ui/pages/AlertManagement'
 import { AppStateProvider } from './state/AppState'
 
 const router = createBrowserRouter([
@@ -11,8 +12,9 @@ const router = createBrowserRouter([
 		path: '/',
 		element: <RootLayout />,
 		children: [
-			{ index: true, element: <div /> }, // 空页面，主要内容在Tab系统中
+			{ index: true, element: <div /> }, // Empty page, main content is in the Tab system
 			{ path: 'chain-config', element: <ChainConfig /> },
+			{ path: 'alerts', element: <AlertManagement /> },
 		],
 	},
 ])

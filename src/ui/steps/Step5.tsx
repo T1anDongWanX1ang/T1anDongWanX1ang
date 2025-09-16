@@ -4,7 +4,7 @@ import { useAppState } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { fieldParsingAPI } from '../../services/api'
 
-// 定义JSON配置的类型
+// Define JSON configuration types
 interface ChainConfig {
 	id: number
 	kafka: {
@@ -46,7 +46,7 @@ interface IngestionConfig {
 	chainConfigs?: {
 		[chainName: string]: ChainConfig
 	}
-	// 新格式支持
+	// New format support
 	flink?: {
 		parallelism: number
 		checkpoint: {
@@ -92,39 +92,39 @@ export default function Step5() {
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const currentColumn = columns?.find(c => c.id === currentColumnId)
 
-	// 从Step2获取字段映射结果
+	// Get Field Mapping Results from Step2
 	const mappingRules: any[] = []
 
-	// 初始化字段映射选择状态
+	// Initialize field mapping selection state
 	useEffect(() => {
 		if (mappingRules.length > 0) {
 			const initialSelection: {[key: string]: boolean} = {}
 			mappingRules.forEach(rule => {
-				initialSelection[rule.targetKey] = true // 默认选中所有映射字段
+				initialSelection[rule.targetKey] = true // Default select all mapping fields
 			})
 			setMappingFieldsSelection(initialSelection)
 		}
 	}, [mappingRules])
 
-	// 检查是否为新格式
+	// Check if it's New format
 	const isNewFormat = (config: any): boolean => {
 		return config && config.flink && config.kafka && config.doris && config.job &&
 			   !config.chains && !config.chainConfigs
 	}
 
-	// 安全获取chains数组
+	// Safely get chains array
 	const getChains = (): string[] => {
 		if (!configData) return []
 		return (configData as any).chains || ['default']
 	}
 
-	// 安全获取chainConfigs
+	// Safely get chainConfigs
 	const getChainConfigs = (): any => {
 		if (!configData) return {}
 		return (configData as any).chainConfigs || {}
 	}
 
-	// 处理JSON配置文件上传
+	// Handle JSON Configuration File Upload
 	const handleConfigFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0]
 		if (!file) return
@@ -134,25 +134,25 @@ export default function Step5() {
 			const content = await file.text()
 			const jsonData = JSON.parse(content)
 			
-			console.log('📄 解析的JSON配置:', jsonData)
+			console.log('📄 Parsed JSON configuration:', jsonData)
 
 			setConfigFile(file)
-			setConfigData(jsonData) // 直接保存原始数据，避免复杂转换
+			setConfigData(jsonData) // Directly save raw data, avoid complex conversion
 			
-			// 简单的格式检测和状态设置
+			// Simple format detection and state setting
 			if (isNewFormat(jsonData)) {
-				console.log('✅ 检测到新格式配置')
+				console.log('✅ New format configuration detected')
 				
-				// 新格式：直接设置基本状态
+				// New format: directly set basic state
 				setSelectedChain('default')
 				setSelectedTable(jsonData.doris.table.name)
-				setSelectedColumns([]) // 新格式需要用户手动选择列
+				setSelectedColumns([]) // New format requires user to manually select columns
 				
-				setSaveMessage('✅ 新格式配置文件加载成功 - 请手动选择表字段')
+				setSaveMessage('✅ New format configuration file loaded successfully - Please manually select table fields')
 			} else {
-				console.log('✅ 检测到旧格式配置')
+				console.log('✅ Old format configuration detected')
 				
-				// 旧格式：安全检查后设置状态
+				// Old format: set state after safety checks
 				try {
 					if (jsonData.chainConfigs && typeof jsonData.chainConfigs === 'object') {
 						const availableChains = Object.keys(jsonData.chainConfigs)
@@ -169,22 +169,22 @@ export default function Step5() {
 							}
 						}
 					}
-					setSaveMessage('✅ 旧格式配置文件加载成功')
+					setSaveMessage('✅ Old format configuration file loaded successfully')
 				} catch (configError) {
-					console.warn('旧格式配置处理警告:', configError)
-					setSaveMessage('⚠️ 配置文件已加载，但部分自动设置失败，请手动配置')
+					console.warn('Old format configuration processing warning:', configError)
+					setSaveMessage('⚠️ Configuration file loaded, but some auto-settings failed, please configure manually')
 				}
 			}
 
 		} catch (error) {
 			console.error('Config file parse failed:', error)
-			setSaveMessage('❌ 配置文件格式错误，请检查JSON格式')
+			setSaveMessage('❌ Configuration file format error, please check JSON format')
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 选择链配置
+	// Select Chain configuration
 	const handleChainSelect = (chainName: string) => {
 		setSelectedChain(chainName)
 		setSelectedTable('')
@@ -199,7 +199,7 @@ export default function Step5() {
 		}
 	}
 
-	// 选择表
+	// Select Table
 	const handleTableSelect = (tableName: string) => {
 		setSelectedTable(tableName)
 		if (configData?.chainConfigs && configData.chainConfigs[selectedChain]?.tables[tableName]) {
@@ -207,7 +207,7 @@ export default function Step5() {
 		}
 	}
 
-	// 切换JSON配置字段选择
+	// Toggle JSON configuration field selection
 	const toggleColumnSelection = (columnName: string) => {
 		setSelectedColumns(prev =>
 			prev.includes(columnName)
@@ -216,7 +216,7 @@ export default function Step5() {
 		)
 	}
 
-	// 切换映射字段选择
+	// Toggle mapping fields selection
 	const toggleMappingFieldSelection = (fieldName: string) => {
 		setMappingFieldsSelection(prev => ({
 			...prev,
@@ -224,7 +224,7 @@ export default function Step5() {
 		}))
 	}
 
-	// 测试Kafka连接
+	// Test Kafka Connection
 	const testKafkaConnection = async () => {
 		if (!configData || !selectedChain) return
 
@@ -233,11 +233,11 @@ export default function Step5() {
 
 		try {
 			if (!configData.chainConfigs) {
-				throw new Error('链配置不存在')
+				throw new Error('ChainConfiguration does not exist')
 			}
 			const chainConfig = configData.chainConfigs[selectedChain]
 			if (!chainConfig) {
-				throw new Error(`找不到链配置: ${selectedChain}`)
+				throw new Error(`Chain configuration not found: ${selectedChain}`)
 			}
 			const response = await fieldParsingAPI.testKafkaConnection({
 				host: configData.kafka.servers.split(':')[0],
@@ -254,7 +254,7 @@ export default function Step5() {
 					...prev,
 					kafka: {
 						success: true,
-						message: 'Kafka连接测试成功',
+						message: 'Kafka Connection Test successful',
 						details: response.data
 					}
 				}))
@@ -263,7 +263,7 @@ export default function Step5() {
 					...prev,
 					kafka: {
 						success: false,
-						message: `Kafka连接失败: ${response.data.message}`,
+						message: `Kafka Connection Failed: ${response.data.message}`,
 						details: response.data
 					}
 				}))
@@ -274,7 +274,7 @@ export default function Step5() {
 				...prev,
 				kafka: {
 					success: false,
-					message: 'Kafka连接测试失败，请检查网络连接'
+					message: 'Kafka Connection Test failed, please check network connection'
 				}
 			}))
 		} finally {
@@ -282,7 +282,7 @@ export default function Step5() {
 		}
 	}
 
-	// 测试Doris连接
+	// Test Doris Connection
 	const testDorisConnection = async () => {
 		if (!configData || !selectedChain) return
 
@@ -291,11 +291,11 @@ export default function Step5() {
 
 		try {
 			if (!configData.chainConfigs) {
-				throw new Error('链配置不存在')
+				throw new Error('ChainConfiguration does not exist')
 			}
 			const chainConfig = configData.chainConfigs[selectedChain]
 			if (!chainConfig) {
-				throw new Error(`找不到链配置: ${selectedChain}`)
+				throw new Error(`Chain configuration not found: ${selectedChain}`)
 			}
 			const response = await fieldParsingAPI.testDorisConnection({
 				host: chainConfig.doris.host,
@@ -311,7 +311,7 @@ export default function Step5() {
 					...prev,
 					doris: {
 						success: true,
-						message: 'Doris连接测试成功',
+						message: 'Doris Connection Test successful',
 						details: response.data
 					}
 				}))
@@ -320,7 +320,7 @@ export default function Step5() {
 					...prev,
 					doris: {
 						success: false,
-						message: `Doris连接失败: ${response.data.message}`,
+						message: `Doris Connection Failed: ${response.data.message}`,
 						details: response.data
 					}
 				}))
@@ -331,7 +331,7 @@ export default function Step5() {
 				...prev,
 				doris: {
 					success: false,
-					message: 'Doris连接测试失败，请检查网络连接'
+					message: 'Doris Connection Test failed, please check network connection'
 				}
 			}))
 		} finally {
@@ -339,7 +339,7 @@ export default function Step5() {
 		}
 	}
 
-	// 运行完整测试
+	// Run Full Test
 	const runFullTest = async () => {
 		setIsLoading(true)
 		setTestResults(prev => ({ ...prev, overall: null }))
@@ -359,7 +359,7 @@ export default function Step5() {
 					...prev,
 					overall: {
 						success: overallSuccess,
-						message: overallSuccess ? '所有连接测试通过' : '存在连接问题，请检查配置'
+						message: overallSuccess ? 'All connection tests passed' : 'Connection issues exist, please check configuration'
 					}
 				}))
 			}, 1000)
@@ -367,17 +367,17 @@ export default function Step5() {
 			console.error('Full test failed:', error)
 			setTestResults(prev => ({
 				...prev,
-				overall: { success: false, message: '测试过程发生错误' }
+				overall: { success: false, message: 'Error occurred during testing' }
 			}))
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 保存配置到后端
+	// Save Configuration to backend
 	const saveConfiguration = async () => {
 		if (!configData || !selectedChain || !selectedTable) {
-			setSaveMessage('❌ 请完成所有配置选择')
+			setSaveMessage('❌ Please complete all configuration selections')
 			return
 		}
 
@@ -385,17 +385,17 @@ export default function Step5() {
 		setSaveMessage('')
 
 		try {
-			console.log('🔍 开始保存配置，当前数据:', { configData, selectedChain, selectedTable, selectedColumns })
+			console.log('🔍 Starting to save configuration, Current data:', { configData, selectedChain, selectedTable, selectedColumns })
 			
-			// 检查是否为新格式
+			// Check if it's New format
 			const isNew = isNewFormat(configData)
-			console.log('📋 配置格式:', isNew ? '新格式' : '旧格式')
+			console.log('📋 Configuration format:', isNew ? 'New format' : 'Old format')
 			
 			let moduleContent: any
 
 			if (isNew) {
-				// 新格式数据处理
-				console.log('✅ 处理新格式配置数据')
+				// New format data processing
+				console.log('✅ Processing New format configuration data')
 				const newConfig = configData as any
 				
 				moduleContent = {
@@ -419,20 +419,20 @@ export default function Step5() {
 					flink: newConfig.flink
 				}
 			} else {
-				// 旧格式数据处理
-				console.log('✅ 处理旧格式配置数据')
+				// Old format data processing
+				console.log('✅ Processing Old format configuration data')
 				const chainConfigs = getChainConfigs()
 				const chainConfig = chainConfigs[selectedChain]
 				
 				if (!chainConfig) {
-					throw new Error(`找不到链配置: ${selectedChain}`)
+					throw new Error(`Chain configuration not found: ${selectedChain}`)
 				}
 
-				// 获取选中的映射字段
+				// Get selected mapping fields
 				const selectedMappingFields = Object.keys(mappingFieldsSelection)
 					.filter(key => mappingFieldsSelection[key])
 
-				// 构建完整的JSON配置数据
+				// Build complete JSON configuration data
 				moduleContent = {
 					kafka: {
 						servers: (configData as any).kafka.servers
@@ -467,35 +467,35 @@ export default function Step5() {
 				}
 			}
 
-			console.log('📊 构建的moduleContent:', moduleContent)
+			console.log('📊 Built moduleContent:', moduleContent)
 
-			// 包装成新的API格式
+			// Wrap into new API format
 			const requestData = {
 				component_id: isNew ? 2 : (getChainConfigs()[selectedChain]?.id || 2),
 				module_content: moduleContent
 			}
 			
-			console.log('📦 最终请求数据:', requestData)
+			console.log('📦 Final request data:', requestData)
 
-			// 调用后端API保存配置
+			// Call backend API to Save Configuration
 			const response = await fieldParsingAPI.saveIngestionConfig(requestData)
 
 			if (response.success) {
-				setSaveMessage('✅ 配置已成功保存到后端')
+				setSaveMessage('✅ Configuration successfully saved to backend')
 
-				// 配置已保存到后端，本地状态保持同步
+				// Configuration saved to backend, keep local state synchronized
 			} else {
-				setSaveMessage(`❌ 保存失败: ${response.data.message}`)
+				setSaveMessage(`❌ Save failed: ${response.data.message}`)
 			}
 		} catch (error) {
 			console.error('Save configuration failed:', error)
-			setSaveMessage('❌ 保存失败，请检查网络连接')
+			setSaveMessage('❌ Save failed, please check network connection')
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 重置配置
+	// Reset configuration
 	const resetConfiguration = () => {
 		setConfigFile(null)
 		setConfigData(null)
@@ -514,25 +514,25 @@ export default function Step5() {
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-2xl font-bold text-gray-900">Step 5: 数据摄入配置</h1>
+				<h1 className="text-2xl font-bold text-gray-900">Step 5: Data Ingestion Configuration</h1>
 				<p className="text-gray-600 mt-2">
-					上传JSON配置文件，选择要入库的表和字段，并确认从Step2映射的字段
+					Upload JSON configuration file, select tables and fields for ingestion, and confirm fields mapped from Step2
 				</p>
 				{currentProtocolId && (
 					<div className="mt-2 p-2 bg-blue-50 rounded-md">
 						<p className="text-sm text-blue-700">
-							当前管道ID: <strong>{currentProtocolId}</strong>
+							Current Pipeline ID: <strong>{currentProtocolId}</strong>
 						</p>
 					</div>
 				)}
 			</div>
 
-			{/* Step2 字段映射结果 */}
+			{/* Step2 Field Mapping Results */}
 			{mappingRules.length > 0 && (
-				<Box title="Step2 字段映射结果" className="space-y-4">
+				<Box title="Step2 Field Mapping Results" className="space-y-4">
 					<div>
 						<p className="text-sm text-gray-600 mb-3">
-							以下是从Step2获取的字段映射规则，请选择要入库的字段：
+							Below are field mapping rules from Step2, please select fields for ingestion:
 						</p>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
 							{mappingRules.map(rule => (
@@ -546,7 +546,7 @@ export default function Step5() {
 									<div className="flex-1">
 										<div className="font-medium">{rule.targetKey}</div>
 										<div className="text-xs text-gray-500">
-											源字段: {rule.sourceKey} → 转换器: {rule.transformer}
+											Source Field: {rule.sourceKey} → Transformer: {rule.transformer}
 										</div>
 										{rule.description && (
 											<div className="text-xs text-gray-400">{rule.description}</div>
@@ -556,18 +556,18 @@ export default function Step5() {
 							))}
 						</div>
 						<p className="text-sm text-gray-500 mt-2">
-							已选择 {Object.values(mappingFieldsSelection).filter(Boolean).length} 个映射字段
+							Selected {Object.values(mappingFieldsSelection).filter(Boolean).length} mapping fields
 						</p>
 					</div>
 				</Box>
 			)}
 
 			{/* Configuration File Upload */}
-			<Box title="JSON配置文件上传" className="space-y-4">
+			<Box title="JSON Configuration File Upload" className="space-y-4">
 				<div className="space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							上传JSON配置文件
+							Upload JSON Configuration File
 						</label>
 						<div className="flex items-center gap-4">
 							<input
@@ -581,12 +581,12 @@ export default function Step5() {
 								onClick={resetConfiguration}
 								className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
 							>
-								重置
+								Reset
 							</button>
 						</div>
 						{configFile && (
 							<p className="text-sm text-green-600 mt-2">
-								已加载: {configFile.name}
+								Loaded: {configFile.name}
 							</p>
 						)}
 					</div>
@@ -603,19 +603,19 @@ export default function Step5() {
 
 			{/* Chain and Table Selection */}
 			{configData && (
-				<Box title="链和表选择" className="space-y-4">
+				<Box title="Chain and Table Selection" className="space-y-4">
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{/* Chain Selection */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-2">
-								选择区块链
+								Select Blockchain
 							</label>
 							<select
 								value={selectedChain}
 								onChange={(e) => handleChainSelect(e.target.value)}
 								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
 							>
-								<option value="">请选择链...</option>
+								<option value="">Please select chain...</option>
 								{getChains().map(chain => (
 									<option key={chain} value={chain}>
 										{chain.toUpperCase()} (ID: {getChainConfigs()[chain]?.id || 1})
@@ -628,14 +628,14 @@ export default function Step5() {
 						{selectedChain && (
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									选择数据表
+									Select Data Table
 								</label>
 								<select
 									value={selectedTable}
 									onChange={(e) => handleTableSelect(e.target.value)}
 									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-brand"
 								>
-									<option value="">请选择表...</option>
+									<option value="">Please select table...</option>
 																	{(() => {
 									const chainConfigs = getChainConfigs()
 									const tables = chainConfigs[selectedChain]?.tables || {}
@@ -653,21 +653,21 @@ export default function Step5() {
 					{/* Configuration Preview */}
 					{selectedChain && configData && (
 						<div className="mt-4 p-4 bg-gray-50 rounded-md">
-							<h4 className="text-sm font-medium text-gray-700 mb-2">配置预览</h4>
+							<h4 className="text-sm font-medium text-gray-700 mb-2">Configuration Preview</h4>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 								<div>
-									<p><strong>Kafka服务器:</strong> {(configData as any).kafka?.servers || '未配置'}</p>
-									<p><strong>Topic:</strong> {getChainConfigs()[selectedChain]?.kafka?.topics || (configData as any).kafka?.topics || '未配置'}</p>
-									<p><strong>Group ID:</strong> {getChainConfigs()[selectedChain]?.kafka?.groupId || (configData as any).kafka?.groupId || '未配置'}</p>
+									<p><strong>KafkaServer:</strong> {(configData as any).kafka?.servers || 'Not Configured'}</p>
+									<p><strong>Topic:</strong> {getChainConfigs()[selectedChain]?.kafka?.topics || (configData as any).kafka?.topics || 'Not Configured'}</p>
+									<p><strong>Group ID:</strong> {getChainConfigs()[selectedChain]?.kafka?.groupId || (configData as any).kafka?.groupId || 'Not Configured'}</p>
 								</div>
 								<div>
-									<p><strong>Doris主机:</strong> {(() => {
+									<p><strong>DorisHost:</strong> {(() => {
 										const chainConfig = getChainConfigs()[selectedChain]
 										const dorisConfig = chainConfig?.doris || (configData as any).doris
-										return dorisConfig ? `${dorisConfig.host}:${dorisConfig.port}` : '未配置'
+										return dorisConfig ? `${dorisConfig.host}:${dorisConfig.port}` : 'Not Configured'
 									})()}</p>
-									<p><strong>数据库:</strong> {getChainConfigs()[selectedChain]?.doris?.db || (configData as any).doris?.database || '未配置'}</p>
-									<p><strong>用户:</strong> {getChainConfigs()[selectedChain]?.doris?.user || (configData as any).doris?.user || '未配置'}</p>
+									<p><strong>Database:</strong> {getChainConfigs()[selectedChain]?.doris?.db || (configData as any).doris?.database || 'Not Configured'}</p>
+									<p><strong>User:</strong> {getChainConfigs()[selectedChain]?.doris?.user || (configData as any).doris?.user || 'Not Configured'}</p>
 								</div>
 							</div>
 						</div>
@@ -677,10 +677,10 @@ export default function Step5() {
 
 			{/* JSON Table Column Selection */}
 			{selectedTable && configData && (
-				<Box title="JSON配置表字段选择" className="space-y-4">
+				<Box title="JSON Configuration Table Field Selection" className="space-y-4">
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							选择要入库的表字段 (表: {selectedTable})
+							Select table fields for ingestion (Table: {selectedTable})
 						</label>
 						<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-4">
 							{(() => {
@@ -700,7 +700,7 @@ export default function Step5() {
 							})()}
 						</div>
 						<p className="text-sm text-gray-500 mt-2">
-							已选择 {selectedColumns.length} 个表字段
+							Selected {selectedColumns.length} table fields
 						</p>
 					</div>
 				</Box>
@@ -708,28 +708,28 @@ export default function Step5() {
 
 			{/* Connection Testing */}
 			{selectedChain && selectedTable && (
-				<Box title="连接测试" className="space-y-4">
+				<Box title="Connection Test" className="space-y-4">
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 						<button
 							onClick={testKafkaConnection}
 							disabled={isLoading}
 							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
 						>
-							{isLoading ? '测试中...' : '测试Kafka连接'}
+							{isLoading ? 'Testing...' : 'Test Kafka Connection'}
 						</button>
 						<button
 							onClick={testDorisConnection}
 							disabled={isLoading}
 							className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
 						>
-							{isLoading ? '测试中...' : '测试Doris连接'}
+							{isLoading ? 'Testing...' : 'Test Doris Connection'}
 						</button>
 						<button
 							onClick={runFullTest}
 							disabled={isLoading}
 							className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
 						>
-							{isLoading ? '测试中...' : '完整测试'}
+							{isLoading ? 'Testing...' : 'Full Test'}
 						</button>
 					</div>
 
@@ -753,7 +753,7 @@ export default function Step5() {
 							<div className={`p-3 rounded-md text-sm font-medium ${
 								testResults.overall.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
 							}`}>
-								<strong>整体结果:</strong> {testResults.overall.message}
+								<strong>Overall Result:</strong> {testResults.overall.message}
 							</div>
 						)}
 					</div>
@@ -762,16 +762,16 @@ export default function Step5() {
 
 			{/* Save Configuration */}
 			{configFile && (
-				<Box title="保存配置" className="space-y-4">
+				<Box title="Save Configuration" className="space-y-4">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="text-sm text-gray-600">
-								{selectedChain && selectedTable ? '配置完成，准备保存到后端' : '配置文件已上传，可以保存'}
+								{selectedChain && selectedTable ? 'Configuration complete, ready to save to backend' : 'Configuration file uploaded, ready to save'}
 							</p>
 							<p className="text-xs text-gray-500 mt-1">
 								{selectedChain && selectedTable ? 
-									`链: ${selectedChain} | 表: ${selectedTable} | 表字段: ${selectedColumns.length}个 | 映射字段: ${Object.values(mappingFieldsSelection).filter(Boolean).length}个` :
-									`文件: ${configFile.name} | 大小: ${(configFile.size / 1024).toFixed(1)}KB`
+									`Chain: ${selectedChain} | Table: ${selectedTable} | Table fields: ${selectedColumns.length} items | mapping fields: ${Object.values(mappingFieldsSelection).filter(Boolean).length} items` :
+									`file: ${configFile.name} | size: ${(configFile.size / 1024).toFixed(1)}KB`
 								}
 							</p>
 						</div>
@@ -780,7 +780,7 @@ export default function Step5() {
 							disabled={isLoading}
 							className="px-6 py-2 bg-brand text-white rounded-md hover:bg-brand/90 disabled:opacity-50"
 						>
-							{isLoading ? '保存中...' : '保存配置'}
+							{isLoading ? 'Saving...' : 'Save Configuration'}
 						</button>
 					</div>
 				</Box>
@@ -794,10 +794,10 @@ export default function Step5() {
 					to="/step-4"
 					className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
 				>
-					← 上一步: SQL编辑器
+					← Previous: SQL Editor
 				</Link>
 				<div className="text-sm text-gray-500">
-					最后一步 - 配置完成
+					Final step - Configuration complete
 				</div>
 			</div>
 		</div>

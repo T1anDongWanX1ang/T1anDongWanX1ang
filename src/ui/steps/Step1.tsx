@@ -3,6 +3,7 @@ import Box from '../components/Box'
 import { useAppState, EventMonitor } from '../../state/AppState'
 import { useState, useRef, useEffect } from 'react'
 import { api } from '../../services/api'
+import { AbiService } from '../../services/abiService'
 
 interface Step1Props {
 	onStepChange?: (step: number) => void
@@ -13,6 +14,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 	const [isLoading, setIsLoading] = useState(false)
 	const [validationMessage, setValidationMessage] = useState('')
 	const [contractAddress, setContractAddress] = useState('')
+	const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum')
 	const [abiPath, setAbiPath] = useState('')
 	const [selectedEvents, setSelectedEvents] = useState<string[]>([])
 	const [selectedAbi, setSelectedAbi] = useState<any>(null)
@@ -47,7 +49,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 	
 
 	
-	// 从全局 components 中恢复数据
+	// Restore data from global components
 	useEffect(() => {
 		if (!currentPipelineId) {
 			// 没有选中管道时，清空表单
@@ -113,7 +115,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		const loadAbiOptions = async () => {
 			try {
 				console.log('🔄 开始加载ABI选项列表...')
-				const response = await api.abi.listAbis({ limit: 100 })
+				const response = await AbiService.getAbiList({ page: 1, size: 100 })
 				console.log('📡 ABI API响应:', response)
 				
 				if (response.success) {
@@ -164,8 +166,9 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		setSelectedAbi(abi)
 		setAbiPath(`abi_id:${abi.id}`) // 使用新的ID格式
 		setContractAddress(abi.contract_address) // 自动填充合约地址
+		setSelectedBlockchain(abi.chain_name) // 自动设置区块链
 		setIsAbiDropdownOpen(false)
-		setAbiSearchTerm('')
+		setAbiSearchTerm(abi.display_name) // 显示选中的合约名称
 		
 		// 解析ABI内容并提取事件
 		try {
@@ -213,6 +216,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 		abi.display_name.toLowerCase().includes(abiSearchTerm.toLowerCase()) ||
 		abi.contract_address.toLowerCase().includes(abiSearchTerm.toLowerCase())
 	)
+	
 
 	// 处理ABI文件上传（保留作为备用功能）
 	const handleAbiFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -384,10 +388,11 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 			const eventMonitorComponent: EventMonitor = {
 				name: "step1",
 				type: "event_monitor",
-				chain_name: "ethereum", // 默认使用 ethereum，可以根据实际需要调整
+				chain_name: selectedAbi?.chain_name || "ethereum", // 使用选择的ABI的chain_name
 				contract_address: contractAddress.trim(),
 				abi_path: abiPath.trim(),
-				events_to_monitor: selectedEvents
+				events_to_monitor: selectedEvents,
+				selectedAbi: selectedAbi // 添加selectedAbi字段供Step2使用
 			}
 			
 			// 根据 name 更新或添加 EventMonitor 到全局 components
@@ -463,26 +468,7 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 				</button>
 			}>
 				<div className="space-y-4">
-					<div>
-						<label className="block text-sm font-medium text-gray-700 mb-2">
-							Contract Address *
-						</label>
-						<input 
-							type="text" 
-							className="input w-full" 
-							placeholder="0x... (Ethereum) or base58 (Solana)"
-							value={contractAddress}
-							onChange={(e) => setContractAddress(e.target.value)}
-						/>
-						<div className="mt-1 text-xs text-gray-500">
-							{contractAddress && (
-															<span className={validateContractAddress(contractAddress) ? 'text-green-600' : 'text-red-600'}>
-								{validateContractAddress(contractAddress) ? '✅ Address format is correct' : '❌ Invalid address format'}
-							</span>
-							)}
-						</div>
-					</div>
-
+					{/* Smart ABI Selection */}
 					<div>
 						<label className="block text-sm font-medium text-gray-700 mb-2">
 							Smart ABI Selection *
@@ -583,6 +569,43 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 								</div>
 							</div>
 						)}
+					</div>
+
+					{/* Blockchain Selection */}
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Blockchain *
+						</label>
+						<select 
+							className="input w-full"
+							value={selectedBlockchain}
+							onChange={(e) => setSelectedBlockchain(e.target.value)}
+						>
+							<option value="ethereum">Ethereum</option>
+							<option value="polygon">Polygon</option>
+							<option value="bsc">BSC</option>
+							<option value="arbitrum">Arbitrum</option>
+							<option value="optimism">Optimism</option>
+							<option value="avalanche">Avalanche</option>
+							<option value="fantom">Fantom</option>
+						</select>
+					</div>
+
+					{/* Contract Address */}
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Contract Address *
+						</label>
+						<input 
+							type="text" 
+							className="input w-full" 
+							placeholder="Enter contract address (0x...)"
+							value={contractAddress}
+							onChange={(e) => setContractAddress(e.target.value)}
+						/>
+						<div className="mt-1 text-xs text-gray-500">
+							Enter the smart contract address you want to monitor
+						</div>
 					</div>
 				</div>
 			</Box>
@@ -807,7 +830,8 @@ export default function Step1({ onStepChange }: Step1Props = {}) {
 									"block_number",
 									"log_index",
 									"timestamp",
-									"chain"
+									"chain",
+									"chain_id"
 								].map((field, index) => (
 									<div
 										key={`common-${index}`}

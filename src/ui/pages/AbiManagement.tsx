@@ -4,7 +4,7 @@ import { useAbiManagementShortcuts } from '../../hooks/useKeyboardShortcuts'
 
 interface AbiManagementProps {
 	onOpenModal?: (type: 'add' | 'edit' | 'view' | 'upload', abi?: ContractAbi) => void
-	refreshTrigger?: number // 用于触发刷新的属性
+	refreshTrigger?: number // Property to trigger refresh
 }
 
 export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManagementProps) {
@@ -19,9 +19,9 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 	const pageSize = 10
 	const searchInputRef = useRef<HTMLInputElement>(null)
 
-	// 支持的区块链列表
+	// Supported blockchain list
 	const supportedChains = [
-		{ value: '', label: '全部链' },
+		{ value: '', label: 'All Chains' },
 		{ value: 'ethereum', label: 'Ethereum' },
 		{ value: 'polygon', label: 'Polygon' },
 		{ value: 'bsc', label: 'BSC' },
@@ -31,13 +31,13 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 		{ value: 'fantom', label: 'Fantom' }
 	]
 
-	// 获取ABI列表
+	// Get ABI list
 	const fetchAbiList = async (page = 1) => {
 		try {
 			setLoading(true)
 			setError(null)
 			
-			// 智能判断搜索类型：如果包含0x则认为是地址搜索，否则认为是名称搜索
+			// Smart search type detection: if contains 0x, treat as address search, otherwise as name search
 			const isAddressSearch = searchTerm.toLowerCase().includes('0x')
 			const params = {
 				page,
@@ -57,47 +57,47 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 				setTotalItems(response.data.total)
 				setCurrentPage(response.data.page)
 			} else {
-				setError('获取ABI列表失败')
+				setError('Failed to get ABI list')
 			}
 		} catch (err) {
-			console.error('获取ABI列表错误:', err)
-			setError(err instanceof Error ? err.message : '获取ABI列表失败')
+			console.error('Get ABI list error:', err)
+			setError(err instanceof Error ? err.message : 'Failed to get ABI list')
 		} finally {
 			setLoading(false)
 		}
 	}
 
-	// 删除ABI
+	// Delete ABI
 	const handleDelete = async (abi: ContractAbi) => {
-		if (!confirm('确定要删除此ABI记录吗？')) return
+		if (!confirm('Are you sure you want to delete this ABI record?')) return
 
 		try {
 			const response = await AbiService.deleteAbi(abi.contract_address, abi.chain_name)
 			if (response.success) {
-				// 重新加载列表
+				// Reload list
 				fetchAbiList(currentPage)
 			} else {
-				alert('删除失败: ' + response.message)
+				alert('Delete failed: ' + response.message)
 			}
 		} catch (err) {
-			console.error('删除ABI错误:', err)
-			alert('删除失败: ' + (err instanceof Error ? err.message : '未知错误'))
+			console.error('Delete ABI error:', err)
+			alert('Delete failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
 		}
 	}
 
-	// 处理搜索
+	// Handle search
 	const handleSearch = () => {
 		setCurrentPage(1)
 		fetchAbiList(1)
 	}
 
-	// 处理链选择变更
+	// Handle chain selection change
 	const handleChainChange = (newChain: string) => {
 		setSelectedChain(newChain)
 		setCurrentPage(1)
 	}
 
-	// 重置搜索
+	// Reset search
 	const handleReset = () => {
 		setSearchTerm('')
 		setSelectedChain('')
@@ -105,34 +105,34 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 		fetchAbiList(1)
 	}
 
-	// 格式化地址显示（缩短显示）
+	// Format address display (shortened)
 	const formatAddress = (address: string) => {
 		if (address.length <= 12) return address
 		return `${address.slice(0, 6)}...${address.slice(-6)}`
 	}
 
-	// 格式化时间显示
+	// Format time display
 	const formatTime = (dateString: string) => {
 		try {
 			return new Date(dateString).toLocaleString('zh-CN')
 		} catch {
-			return '无效时间'
+			return 'Invalid time'
 		}
 	}
 
-	// 组件挂载时获取数据
+	// Get data when component mounts
 	useEffect(() => {
 		fetchAbiList()
 	}, [selectedChain])
 
-	// 监听刷新触发器
+	// Listen to refresh trigger
 	useEffect(() => {
 		if (refreshTrigger) {
 			fetchAbiList(currentPage)
 		}
 	}, [refreshTrigger])
 
-	// 键盘快捷键支持
+	// Keyboard shortcuts support
 	useAbiManagementShortcuts({
 		onAddAbi: () => onOpenModal?.('add'),
 		onUploadAbi: () => onOpenModal?.('upload'),
@@ -142,40 +142,40 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 
 	return (
 		<div className="h-full flex flex-col bg-white">
-			{/* 标题栏 */}
+			{/* Title bar */}
 			<div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold text-gray-900">ABI管理</h1>
+						<h1 className="text-2xl font-bold text-gray-900">ABI Management</h1>
 						<p className="mt-1 text-sm text-gray-600">
-							管理智能合约ABI文件，支持手动上传和自动获取
+							Manage smart contract ABI files, support manual upload and automatic fetch
 						</p>
 					</div>
 					<div className="flex gap-3">
 						<button
 							onClick={() => onOpenModal?.('upload')}
 							className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-							title="上传文件 (Ctrl+U)"
+							title="Upload File (Ctrl+U)"
 						>
-							📁 上传文件
+							📁 Upload File
 						</button>
 						<button
 							onClick={() => onOpenModal?.('add')}
 							className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-							title="添加ABI (Ctrl+N)"
+							title="Add ABI (Ctrl+N)"
 						>
-							+ 添加ABI
+							+ Add ABI
 						</button>
 					</div>
 				</div>
 			</div>
 
-			{/* 搜索和筛选栏 */}
+			{/* Search and filter bar */}
 			<div className="flex-shrink-0 px-6 py-4 bg-gray-50 border-b border-gray-200">
-				<div className="flex flex-wrap gap-4 items-end">
-					<div className="flex-1 min-w-[300px]">
+				<div className="flex flex-wrap gap-4 items-start">
+					<div className="flex-1 min-w-[400px] max-w-2xl">
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							智能搜索
+							Smart Search
 						</label>
 						<div className="flex gap-2">
 							<input
@@ -183,7 +183,7 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 								type="text"
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
-								placeholder="输入合约名称或地址进行搜索..."
+								placeholder="Enter contract name or address to search..."
 								className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
 							/>
@@ -191,17 +191,17 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 								onClick={handleSearch}
 								className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
 							>
-								搜索
+								Search
 							</button>
 						</div>
 						<div className="text-xs text-gray-500 mt-1">
-							支持按合约名称或地址搜索
+							Support search by contract name or address
 						</div>
 					</div>
 					
 					<div className="min-w-[180px]">
 						<label className="block text-sm font-medium text-gray-700 mb-2">
-							区块链
+							Blockchain
 						</label>
 						<select
 							value={selectedChain}
@@ -216,42 +216,44 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 						</select>
 					</div>
 
-					<button
-						onClick={handleReset}
-						className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-					>
-						重置
-					</button>
+					<div className="flex items-start">
+						<button
+							onClick={handleReset}
+							className="px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors h-[38px] mt-[28px]"
+						>
+							Reset
+						</button>
+					</div>
 				</div>
 			</div>
 
-			{/* 统计信息 */}
+			{/* Statistics information */}
 			<div className="flex-shrink-0 px-6 py-3 bg-gray-50 border-b border-gray-200">
 				<div className="text-sm text-gray-600">
-					共找到 <span className="font-medium text-gray-900">{totalItems}</span> 个ABI记录
+					Found <span className="font-medium text-gray-900">{totalItems}</span> ABI records
 				</div>
 			</div>
 
-			{/* ABI列表内容 */}
+			{/* ABI list content */}
 			<div className="flex-1 overflow-auto">
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
 						<div className="flex items-center gap-3 text-gray-500">
 							<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-							<span>加载中...</span>
+							<span>Loading...</span>
 						</div>
 					</div>
 				) : error ? (
 					<div className="flex items-center justify-center h-64">
 						<div className="text-center">
 							<div className="text-4xl mb-4">❌</div>
-							<div className="text-lg font-medium text-gray-900 mb-2">加载失败</div>
+							<div className="text-lg font-medium text-gray-900 mb-2">Load Failed</div>
 							<div className="text-sm text-gray-500 mb-4">{error}</div>
 							<button
 								onClick={() => fetchAbiList(currentPage)}
 								className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
 							>
-								重试
+								Retry
 							</button>
 						</div>
 					</div>
@@ -259,11 +261,11 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 					<div className="flex items-center justify-center h-64">
 						<div className="text-center">
 							<div className="text-6xl mb-4">📄</div>
-							<div className="text-lg font-medium text-gray-900 mb-2">暂无ABI记录</div>
+							<div className="text-lg font-medium text-gray-900 mb-2">No ABI Records</div>
 							<div className="text-sm text-gray-500 mb-6">
 								{searchTerm || selectedChain ? 
-									'没有找到符合条件的ABI记录，请尝试调整搜索条件' :
-									'开始添加您的第一个ABI记录'
+									'No ABI records found matching your criteria, please try adjusting your search conditions' :
+									'Start adding your first ABI record'
 								}
 							</div>
 							<div className="flex gap-3 justify-center">
@@ -271,39 +273,39 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 									onClick={() => onOpenModal?.('add')}
 									className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
 								>
-									+ 添加ABI
+									+ Add ABI
 								</button>
 								<button
 									onClick={() => onOpenModal?.('upload')}
 									className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
 								>
-									📁 上传文件
+									📁 Upload File
 								</button>
 							</div>
 						</div>
 					</div>
 				) : (
 					<div className="p-6">
-						{/* ABI列表表格 */}
+						{/* ABI list table */}
 						<div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
 							<div className="overflow-x-auto">
 								<table className="w-full">
 									<thead className="bg-gray-50">
 										<tr>
 											<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												合约信息
+												Contract Information
 											</th>
 											<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												区块链
+												Blockchain
 											</th>
 											<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												来源
+												Source
 											</th>
 											<th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-												创建时间
+												Creation Time
 											</th>
 											<th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-												操作
+												Actions
 											</th>
 										</tr>
 									</thead>
@@ -332,11 +334,11 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 												</td>
 												<td className="px-4 py-4">
 													<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-														abi.source_type === 'auto_fetch' 
+														abi.source_type === 'auto' 
 															? 'bg-green-100 text-green-800' 
 															: 'bg-yellow-100 text-yellow-800'
 													}`}>
-														{abi.source_type === 'auto_fetch' ? '自动获取' : '手动添加'}
+														{abi.source_type === 'auto' ? 'Auto Fetch' : 'Manual Add'}
 													</span>
 												</td>
 												<td className="px-4 py-4 text-sm text-gray-500">
@@ -348,19 +350,19 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 															onClick={() => onOpenModal?.('view', abi)}
 															className="text-blue-600 hover:text-blue-900 text-sm font-medium"
 														>
-															查看
+															View
 														</button>
 														<button
 															onClick={() => onOpenModal?.('edit', abi)}
 															className="text-green-600 hover:text-green-900 text-sm font-medium"
 														>
-															编辑
+															Edit
 														</button>
 														<button
 															onClick={() => handleDelete(abi)}
 															className="text-red-600 hover:text-red-900 text-sm font-medium"
 														>
-															删除
+															Delete
 														</button>
 													</div>
 												</td>
@@ -371,11 +373,11 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 							</div>
 						</div>
 
-						{/* 分页控件 */}
+						{/* Pagination controls */}
 						{totalPages > 1 && (
 							<div className="mt-6 flex items-center justify-between">
 								<div className="text-sm text-gray-700">
-									显示第 {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} 条，共 {totalItems} 条记录
+									Showing  {(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalItems)} of {totalItems} records
 								</div>
 								<div className="flex items-center gap-2">
 									<button
@@ -387,7 +389,7 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 										disabled={currentPage <= 1}
 										className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
 									>
-										上一页
+										Previous
 									</button>
 									
 									<div className="flex items-center gap-1">
@@ -428,7 +430,7 @@ export default function AbiManagement({ onOpenModal, refreshTrigger }: AbiManage
 										disabled={currentPage >= totalPages}
 										className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
 									>
-										下一页
+										Next
 									</button>
 								</div>
 							</div>

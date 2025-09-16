@@ -4,11 +4,17 @@ import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import type { PipelineTreeNode, PipelineCreateRequest } from '../../services/api'
 
-// 菜单项类型定义
-type MenuSection = 'config' | 'abi' | 'database'
+// Menu item type definition
+type MenuSection = 'config' | 'abi' | 'management'
 
-// 菜单项配置
+// Menu item configuration
 const menuItems = [
+	{
+		id: 'management' as MenuSection,
+		name: 'Unified Management',
+		icon: '📊',
+		description: 'Unified management of configuration and task status'
+	},
 	{
 		id: 'config' as MenuSection,
 		name: 'Configuration Management',
@@ -20,12 +26,6 @@ const menuItems = [
 		name: 'ABI Management',
 		icon: '📄',
 		description: 'Smart contract ABI files'
-	},
-	{
-		id: 'database' as MenuSection,
-		name: 'Database Management',
-		icon: '🗄️',
-		description: 'Database connection configuration'
 	}
 ]
 
@@ -64,7 +64,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 	const [isCollapsed, setIsCollapsed] = useState(false)
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null)
 
-	// 从 API 获取管道树数据
+	// Get pipeline tree data from API
 	const fetchPipelineTree = async () => {
 		setTreeLoading(true)
 		try {
@@ -79,56 +79,56 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		}
 	}
 
-	// 组件挂载时获取数据
+	// Get data when component mounts
 	useEffect(() => {
 		fetchPipelineTree()
 	}, [])
 
-	// 删除分类
+	// Delete classification
 	const handleDeleteClassification = async (classificationId: number) => {
 		try {
 			const response = await api.pipeline.deleteClassification(classificationId)
 			if (response.success) {
-				console.log('✅ 分类删除成功:', response.message)
-				// 重新获取树数据
+				console.log('✅ Classification deleted successfully:', response.message)
+				// Refresh tree data
 				await fetchPipelineTree()
 				setShowDeleteConfirm(null)
 			} else {
-				console.error('❌ 分类删除失败:', response.message)
+				console.error('❌ Classification deletion failed:', response.message)
 				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
-			console.error('❌ 分类删除请求失败:', error)
+			console.error('❌ Classification deletion request failed:', error)
 			alert('Delete failed, please try again')
 		}
 	}
 
-	// 删除管道
+	// Delete pipeline
 	const handleDeletePipeline = async (pipelineId: number) => {
 		try {
 			const response = await api.pipeline.deletePipeline(pipelineId)
 			if (response.success) {
-				console.log('✅ 管道删除成功:', response.message)
-				// 重新获取树数据
+				console.log('✅ Pipeline deleted successfully:', response.message)
+				// Refresh tree data
 				await fetchPipelineTree()
 				setShowDeleteConfirm(null)
-				// 如果删除的是当前选中的管道，清除选中状态
+				// If deleting the currently selected pipeline, clear selection
 				if (currentPipelineId === pipelineId) {
 					setCurrentPipeline(null)
 				}
 			} else {
-				console.error('❌ 管道删除失败:', response.message)
+				console.error('❌ Pipeline deletion failed:', response.message)
 				alert(`Delete failed: ${response.message}`)
 			}
 		} catch (error) {
-			console.error('❌ 管道删除请求失败:', error)
+			console.error('❌ Pipeline deletion request failed:', error)
 			alert('Delete failed, please try again')
 		}
 	}
 
-	// 处理删除确认
+	// Handle delete confirmation
 	const handleDeleteConfirm = (node: PipelineTreeNode) => {
-		console.log('✅ 确认删除节点:', node.id, '节点名称:', node.name, '节点类型:', node.type)
+		console.log('✅ Confirm delete node:', node.id, 'node name:', node.name, 'node type:', node.type)
 		if (node.type === 'classification') {
 			handleDeleteClassification(node.id)
 		} else {
@@ -136,7 +136,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		}
 	}
 
-	// 移除自动打开Tab的逻辑，让用户手动点击菜单
+	// Remove auto-open Tab logic, let users manually click menu
 
 	const toggleChainExpansion = (chainId: string) => {
 		const newExpanded = new Set(expandedChains)
@@ -171,38 +171,38 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 
 			const response = await api.pipeline.create(request)
 			if (response.success) {
-				console.log('✅ 管道创建成功:', response.data)
-				// 刷新树数据
+				console.log('✅ Pipeline created successfully:', response.data)
+				// Refresh tree data
 				await fetchPipelineTree()
-				// 清空输入
+				// Clear input
 				setNewProtocolName('')
 				setShowProtocolInput('')
 			}
 		} catch (error) {
-			console.error('❌ 创建管道失败:', error)
+			console.error('❌ Create pipeline failed:', error)
 		}
 	}
 
 	const handlePipelineClick = async (pipelineId: number) => {
 		try {
-			console.log('🔄 点击管道，ID:', pipelineId)
+			console.log('🔄 Click pipeline, ID:', pipelineId)
 			
-			// 设置当前管道ID
+			// Set current pipeline ID
 			setCurrentPipeline(pipelineId)
 			
-			// 尝试加载管道配置
+			// Try to load pipeline configuration
 			await loadPipelineConfig(pipelineId)
 			
-			// 在右侧打开配置管理Tab
+			// Open configuration management tab on the right
 			onOpenTab?.('config', pipelineId)
 		} catch (error) {
-			console.error('❌ 处理管道点击失败:', error)
-			// 即使出错也打开Tab，但组件数据会是空的
+			console.error('❌ Handle pipeline click failed:', error)
+			// Even if error, still open Tab, but component data will be empty
 			onOpenTab?.('config', pipelineId)
 		}
 	}
 
-	// 递归渲染树节点
+	// Recursively render tree nodes
 	const renderTreeNode = (node: PipelineTreeNode, level: number = 0) => {
 		const isExpanded = expandedChains.has(`node-${node.id}`)
 		const hasChildren = node.children && node.children.length > 0
@@ -256,7 +256,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 						<button
 							onClick={(e) => {
 								e.stopPropagation()
-								console.log('🗑️ 点击删除按钮，节点ID:', node.id, '节点名称:', node.name, '节点类型:', node.type)
+								console.log('🗑️ Click delete button, node ID:', node.id, 'node name:', node.name, 'node type:', node.type)
 								setShowDeleteConfirm(node.id)
 							}}
 							className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
@@ -314,7 +314,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		)
 	}
 
-	// 渲染配置管理内容
+	// Render configuration management content
 	const renderConfigManagement = () => (
 		<div className="space-y-1">
 			{treeLoading ? (
@@ -329,14 +329,14 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		</div>
 	)
 
-	// 渲染ABI管理内容
+	// Render ABI management content
 	const renderAbiManagement = () => (
 		<div className="space-y-3">
 			<div className="text-sm text-gray-600 mb-3">
 				Manage smart contract ABI files
 			</div>
 			
-			{/* ABI 文件列表 */}
+			{/* ABI File List */}
 			<div className="space-y-2">
 				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
 					<div className="flex items-center gap-2">
@@ -369,7 +369,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 				</div>
 			</div>
 			
-			{/* 上传新ABI */}
+			{/* Upload New ABI */}
 			<div className="border-t pt-3">
 				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
 					+ Upload New ABI File
@@ -378,62 +378,8 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		</div>
 	)
 
-	// 渲染数据库管理内容
-	const renderDatabaseManagement = () => (
-		<div className="space-y-3">
-			<div className="text-sm text-gray-600 mb-3">
-				Manage database connections and configurations
-			</div>
-			
-			{/* 数据库连接列表 */}
-			<div className="space-y-2">
-				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-					<div className="flex items-center gap-2">
-						<span className="text-xs">🗄️</span>
-						<div>
-							<div className="text-sm font-medium">MySQL-Primary</div>
-							<div className="text-xs text-gray-500">mysql://localhost:3306</div>
-						</div>
-					</div>
-					<div className="flex gap-1">
-						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							Test
-						</button>
-						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-							Edit
-						</button>
-					</div>
-				</div>
-				
-				<div className="flex items-center justify-between p-2 bg-gray-50 rounded">
-					<div className="flex items-center gap-2">
-						<span className="text-xs">🗄️</span>
-						<div>
-							<div className="text-sm font-medium">Doris-Analytics</div>
-							<div className="text-xs text-gray-500">doris://localhost:8030</div>
-						</div>
-					</div>
-					<div className="flex gap-1">
-						<button className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
-							Test
-						</button>
-						<button className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200">
-							Edit
-						</button>
-					</div>
-				</div>
-			</div>
-			
-			{/* 添加新数据库 */}
-			<div className="border-t pt-3">
-				<button className="w-full text-sm px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300">
-					+ Add Database Connection
-				</button>
-			</div>
-		</div>
-	)
 
-	// 递归查找节点
+	// Recursively find node
 	const findNodeById = (node: PipelineTreeNode, id: number): PipelineTreeNode | null => {
 		if (node.id === id) return node
 		for (const child of node.children) {
@@ -443,16 +389,16 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 		return null
 	}
 
-	// 找到要删除的节点信息
+	// Find the node to delete
 	const nodeToDelete = showDeleteConfirm ? 
 		pipelineTree.reduce((found: PipelineTreeNode | null, node) => 
 			found || findNodeById(node, showDeleteConfirm), null) : null
 	
-	// 调试日志
+	// Debug log
 	if (showDeleteConfirm && nodeToDelete) {
-		console.log('🔍 找到要删除的节点:', nodeToDelete.id, '节点名称:', nodeToDelete.name, '节点类型:', nodeToDelete.type)
+		console.log('🔍 Found node to delete:', nodeToDelete.id, 'node name:', nodeToDelete.name, 'node type:', nodeToDelete.type)
 	} else if (showDeleteConfirm && !nodeToDelete) {
-		console.log('❌ 未找到要删除的节点，查找ID:', showDeleteConfirm, '树结构:', pipelineTree)
+		console.log('❌ Node to delete not found, search ID:', showDeleteConfirm, 'tree structure:', pipelineTree)
 	}
 
 	return (
@@ -480,7 +426,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 								key={item.id}
 								onClick={() => {
 									setActiveSection(item.id)
-									// 每次点击都打开Tab（RightTabSystem会处理重复检查）
+									// Open Tab every click (RightTabSystem handles duplicate checks)
 									onOpenTab?.(item.id)
 								}}
 								className={`w-full text-left p-3 rounded-lg transition-colors ${
@@ -491,12 +437,12 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 								title={isCollapsed ? item.name : ''}
 							>
 								{isCollapsed ? (
-									// 收起状态：只显示图标
+									// Collapsed state: only show icons
 									<div className="flex justify-center">
 										<span className="text-lg">{item.icon}</span>
 									</div>
 								) : (
-									// 展开状态：显示完整内容
+									// Expanded state: show full content
 									<div className="flex items-center gap-3">
 										<span className="text-lg">{item.icon}</span>
 										<div>
@@ -524,7 +470,7 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 				)}
 			</div>
 
-			{/* 删除确认对话框 */}
+			{/* Delete confirmation dialog */}
 			{showDeleteConfirm && nodeToDelete && (
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">

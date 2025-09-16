@@ -53,7 +53,7 @@ async function apiRequest1<T>(
 	options: RequestInit = {},
 	retryCount = 0
 ): Promise<T> {
-	const url = `http://localhost:8001${endpoint}`
+	const url = `http://localhost:8002${endpoint}`
 	
 	const defaultOptions: RequestInit = {
 		headers: {
@@ -91,6 +91,120 @@ async function apiRequest1<T>(
 		}
 		
 		throw error
+	}
+}
+
+// 合约方法查询相关API
+export interface ContractMethodParameter {
+	name: string
+	type: string
+	indexed?: boolean
+	internal_type?: string
+}
+
+export interface ContractMethod {
+	name: string
+	type: string
+	inputs: ContractMethodParameter[]
+	outputs?: ContractMethodParameter[]
+	state_mutability?: string
+	signature?: string
+	selector?: string
+	anonymous?: boolean
+}
+
+export interface ContractMethodQueryResult {
+	contract_address: string
+	chain_name: string
+	contract_name?: string
+	methods: ContractMethod[]
+	events: ContractMethod[]
+	functions: ContractMethod[]
+	matched_methods: ContractMethod[]
+	query_metadata?: {
+		total_functions: number
+		total_events: number
+		matched_methods_count: number
+		query_event_name?: string
+		abi_source_type?: string
+		contract_abi_id?: number
+	}
+}
+
+export interface BatchMethodQueryRequest {
+	queries: Array<{
+		contract_address: string
+		chain_name?: string
+		event_name?: string
+		method_types?: string[]
+	}>
+}
+
+export interface BatchMethodQueryResult {
+	success: boolean
+	data: ContractMethodQueryResult[]
+	total_queries: number
+	successful_queries: number
+	failed_queries: number
+}
+
+export interface MethodType {
+	value: string
+	label: string
+	description: string
+}
+
+// 合约方法查询API
+export const contractMethodsAPI = {
+	// 查询单个合约的方法
+	async queryContractMethods(
+		contractAddress: string, 
+		chainName?: string, 
+		eventName?: string, 
+		methodTypes?: string[]
+	): Promise<ContractMethodQueryResult> {
+		const params = new URLSearchParams()
+		if (chainName) params.append('chain_name', chainName)
+		if (eventName) params.append('event_name', eventName)
+		if (methodTypes && methodTypes.length > 0) {
+			params.append('method_types', methodTypes.join(','))
+		}
+		
+		return apiRequest1<ContractMethodQueryResult>(
+			`/api/v1/contracts/${contractAddress}/methods/query?${params}`
+		)
+	},
+
+	// 批量查询合约方法
+	async batchQueryContractMethods(request: BatchMethodQueryRequest): Promise<BatchMethodQueryResult> {
+		return apiRequest1<BatchMethodQueryResult>(
+			'/api/v1/contracts/batch/methods/query',
+			{
+				method: 'POST',
+				body: JSON.stringify(request)
+			}
+		)
+	},
+
+	// 查询特定方法
+	async getSpecificMethod(
+		contractAddress: string, 
+		methodName: string, 
+		chainName?: string
+	): Promise<ContractMethod[]> {
+		const params = new URLSearchParams()
+		if (chainName) params.append('chain_name', chainName)
+		
+		return apiRequest1<ContractMethod[]>(
+			`/api/v1/contracts/${contractAddress}/methods/${methodName}?${params}`
+		)
+	},
+
+	// 获取支持的方法类型
+	async getSupportedMethodTypes(): Promise<{ method_types: MethodType[] }> {
+		return apiRequest1<{ method_types: MethodType[] }>(
+			'/api/v1/contracts/methods/types'
+		)
 	}
 }
 
@@ -914,6 +1028,8 @@ export const pipelineAPI = {
 			const result = await response.json()
 			console.log(`Pipeline ${pipelineId} config loaded:`, result)
 			
+			// 后端已经返回了正确的格式，不需要额外转换
+			
 			// 后端直接返回管道配置数据，需要包装成标准格式
 			return {
 				success: true,
@@ -1326,6 +1442,140 @@ export const abiAPI = {
 	}
 }
 
+// 合约信息查询API
+export const contractInfoAPI = {
+	// 获取合约基本信息
+	getContractInfo: async (contractAddress: string, chainName: string): Promise<{
+		success: boolean
+		data?: {
+			contract_address: string
+			chain_name: string
+			name?: string
+			symbol?: string
+			decimals?: number
+			total_supply?: string
+			is_erc20_compatible: boolean
+			query_metadata: any
+		}
+		message?: string
+	}> => {
+		try {
+			const endpoint = `/api/v1/contracts/${contractAddress}/info?chain_name=${chainName}`
+			const response = await apiRequest1<{
+				contract_address: string
+				chain_name: string
+				name?: string
+				symbol?: string
+				decimals?: number
+				total_supply?: string
+				is_erc20_compatible: boolean
+				query_metadata: any
+			}>(endpoint)
+			
+			return {
+				success: true,
+				data: response,
+				message: '合约信息获取成功'
+			}
+		} catch (error) {
+			console.error('获取合约信息失败:', error)
+			return {
+				success: false,
+				message: error instanceof Error ? error.message : '获取合约信息失败'
+			}
+		}
+	},
+
+	// 专门获取合约decimals（快速查询）
+	getContractDecimals: async (contractAddress: string, chainName: string): Promise<{
+		success: boolean
+		contract_address: string
+		chain_name: string
+		decimals?: number
+		error?: string
+		message: string
+	}> => {
+		try {
+			const endpoint = `/api/v1/contracts/${contractAddress}/decimals?chain_name=${chainName}`
+			const response = await apiRequest1<{
+				success: boolean
+				contract_address: string
+				chain_name: string
+				decimals?: number
+				error?: string
+				message: string
+			}>(endpoint)
+			
+			return response
+		} catch (error) {
+			console.error('获取合约decimals失败:', error)
+			return {
+				success: false,
+				contract_address: contractAddress,
+				chain_name: chainName,
+				message: error instanceof Error ? error.message : '获取decimals失败'
+			}
+		}
+	},
+
+	// 批量获取多个合约的decimals
+	getBatchContractDecimals: async (contracts: Array<{
+		contract_address: string
+		chain_name: string
+	}>): Promise<Array<{
+		success: boolean
+		contract_address: string
+		chain_name: string
+		decimals?: number
+		error?: string
+		message: string
+	}>> => {
+		try {
+			// 并行查询所有合约的decimals
+			const promises = contracts.map(contract => 
+				contractInfoAPI.getContractDecimals(contract.contract_address, contract.chain_name)
+			)
+			
+			const results = await Promise.all(promises)
+			return results
+		} catch (error) {
+			console.error('批量获取合约decimals失败:', error)
+			// 如果批量查询失败，返回失败结果
+			return contracts.map(contract => ({
+				success: false,
+				contract_address: contract.contract_address,
+				chain_name: contract.chain_name,
+				message: '批量查询失败'
+			}))
+		}
+	}
+}
+
+// 转化器预览相关接口
+export interface TransformPreviewRequest {
+	transformer: string
+	source_value: string
+	context?: Record<string, any>
+}
+
+export interface TransformPreviewResponse {
+	success: boolean
+	message: string
+	source_value: string
+	transformed_value: string
+	transformer: string
+}
+
+const transformAPI = {
+	// 转化器预览
+	preview: async (data: TransformPreviewRequest): Promise<TransformPreviewResponse> => {
+		return apiRequest1<TransformPreviewResponse>(API_ENDPOINTS.TRANSFORM_PREVIEW, {
+			method: 'POST',
+			body: JSON.stringify(data)
+		})
+	}
+}
+
 // 导出所有API
 export const api = {
 	fieldParsing: fieldParsingAPI,
@@ -1334,5 +1584,7 @@ export const api = {
 	validation: validationAPI,
 	file: fileAPI,
 	pipeline: pipelineAPI,
-	abi: abiAPI
+	abi: abiAPI,
+	contractInfo: contractInfoAPI,
+	transform: transformAPI
 }

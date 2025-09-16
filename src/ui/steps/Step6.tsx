@@ -140,7 +140,7 @@ export default function Step6() {
 				fetchLatestTask()
 			}, 30000) // 30秒 = 30000毫秒
 			
-			console.log('⏰ 已启动任务状态定时查询 (30秒间隔)')
+			console.log('⏰ 已Start Task状态定时查询 (30秒间隔)')
 		} else {
 			console.log('📝 无管道ID，清空任务状态')
 			setTaskStatus(null)
@@ -161,27 +161,30 @@ export default function Step6() {
 		}
 	}, [currentPipelineId])
 
-	// 保存解析任务 - 执行完整配置保存
+	// 保存Parse Task - 执行完整配置保存
 	const handleSaveParseTask = async () => {
 		if (!currentPipelineId) {
-			setSaveMessage('❌ 请先选择一个管道')
+			setSaveMessage('❌ Please select a pipeline first')
 			return
 		}
 
 		if (components.length === 0) {
-			setSaveMessage('❌ 没有可保存的组件配置')
+			setSaveMessage('❌ No component configuration to save')
 			return
 		}
 
 		setIsLoading(true)
-		setSaveMessage('🔄 正在保存管道配置...')
+		setSaveMessage('🔄 Saving pipeline configuration...')
 
 		try {
 			// 使用真实数据构建pipeline_info
 			const pipelineInfo = {
 				pipeline_name: currentPipelineName || `pipeline_${currentPipelineId}`,
-				description: `管道配置 - ${currentPipelineName || currentPipelineId}`,
-				components: components.map(component => {
+				description: `Pipeline Configuration - ${currentPipelineName || currentPipelineId}`,
+				components: ['step1', 'step2', 'step3', 'step4']
+					.map(stepName => components.find(c => c.name === stepName))
+					.filter(component => component !== undefined)
+					.map(component => {
 					// 根据组件类型处理不同的数据结构
 					const baseComponent = {
 						name: component.name,
@@ -215,11 +218,16 @@ export default function Step6() {
 						case 'contract_caller':
 							return {
 								...baseComponent,
-								chain_name: component.chain_name || 'ethereum',
-								contract_address: component.contract_address || '',
-								abi_path: component.abi_path || '',
-								method_name: component.method_name || '',
-								method_params: component.method_params || []
+								contract_callers: component.contract_callers || [], // Step2保存的合约调用配置数组
+								chain_name: component.chain_name || 'ethereum'
+							}
+						
+						case 'evm_contract_caller':
+							return {
+								...baseComponent,
+								type: 'contract_caller', // 映射到后端期望的类型
+								contract_callers: component.contract_callers || [], // Step2保存的合约调用配置数组
+								chain_name: component.chain_name || 'ethereum'
 							}
 						
 						default:
@@ -244,28 +252,28 @@ export default function Step6() {
 					components_created: response.components_created,
 					message: response.message
 				})
-				setSaveMessage(`✅ 管道配置保存成功！\nPipeline ID: ${response.pipeline_id}\n创建组件数: ${response.components_created}`)
+				setSaveMessage(`✅ Pipeline configuration saved successfully!\nPipeline ID: ${response.pipeline_id}\nComponents created: ${response.components_created}`)
 				
-				console.log('🎉 管道配置保存成功:', response)
+				console.log('🎉 管道Configuration Saved Successfully:', response)
 			} else {
-				setSaveMessage(`❌ 保存失败: ${response.message}`)
+				setSaveMessage(`❌ Save failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('管道配置保存失败:', error)
-			setSaveMessage(`❌ 保存失败: ${error instanceof Error ? error.message : '未知错误'}`)
+			setSaveMessage(`❌ Save failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 启动解析任务
+	// 启动Parse Task
 	const handleStartParseTask = async () => {
 		if (!currentPipelineId) {
-			setSaveMessage('❌ 请先选择一个管道')
+			setSaveMessage('❌ Please select a pipeline first')
 			return
 		}
 
-		console.log('🚀 启动解析任务...')
+		console.log('🚀 启动Parse Task...')
 		const parseComponents = components.filter(component => 
 			component.type === 'event_monitor' || 
 			component.type === 'dict_mapper' || 
@@ -273,12 +281,12 @@ export default function Step6() {
 		)
 		
 		if (parseComponents.length === 0) {
-			setSaveMessage('❌ 没有可启动的解析任务组件')
+			setSaveMessage('❌ No parsing task components to start')
 			return
 		}
 
 		setIsLoading(true)
-		setSaveMessage('🔄 正在启动管道...')
+		setSaveMessage('🔄 Starting pipeline...')
 
 		try {
 			const response = await api.pipeline.start({
@@ -286,9 +294,9 @@ export default function Step6() {
 			})
 
 			if (response.success) {
-				setSaveMessage(`✅ 管道启动成功！\nPipeline ID: ${response.pipeline_id}\n状态: ${response.status}\n启动时间: ${response.start_time || '未提供'}\n包含 ${parseComponents.length} 个解析任务组件`)
-				console.log('🎉 管道启动成功:', response)
-				console.log('📊 启动的解析任务组件:', parseComponents)
+				setSaveMessage(`✅ Pipeline started successfully!\nPipeline ID: ${response.pipeline_id}\nStatus: ${response.status}\nStart time: ${response.start_time || 'Not provided'}\nContains ${parseComponents.length} parsing task components`)
+				console.log('🎉 管道Started Successfully:', response)
+				console.log('📊 启动的Parse Task组件:', parseComponents)
 				
 				// 2秒后查询任务状态
 				console.log('⏰ 将在2秒后查询任务状态...')
@@ -297,20 +305,20 @@ export default function Step6() {
 					fetchLatestTask()
 				}, 2000)
 			} else {
-				setSaveMessage(`❌ 管道启动失败: ${response.message}`)
+				setSaveMessage(`❌ Pipeline start failed: ${response.message}`)
 			}
 		} catch (error) {
 			console.error('管道启动失败:', error)
-			setSaveMessage(`❌ 启动失败: ${error instanceof Error ? error.message : '未知错误'}`)
+			setSaveMessage(`❌ Start failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
 		} finally {
 			setIsLoading(false)
 		}
 	}
 
-	// 获取任务信息并设置详情链接
+	// 获取任务信息并设置Detail Link
 	const fetchJobInfo = async (): Promise<string | null> => {
 		console.log('🔍 开始查询任务信息...')
-		console.log('⏱️ 查询期间按钮保持启动中状态...')
+		console.log('⏱️ 查询期间按钮保持Starting状态...')
 
 		try {
 			const jobResponse: any = await fieldParsingAPI.getJobInfo()
@@ -319,11 +327,11 @@ export default function Step6() {
 			// 使用 any 类型灵活解析数据
 			let actualJobs = null
 			
-			// 根据实际API返回格式，应该是 jobResponse.data.jobs
+			// 根据实际API返回格式，应该Yes jobResponse.data.jobs
 			if (jobResponse && jobResponse.success) {
 				console.log('✅ 接口调用成功')
 				
-				// 尝试多种可能的数据路径
+				// 尝试多种可能的数据Path
 				if (jobResponse.data && jobResponse.data.jobs) {
 					actualJobs = jobResponse.data.jobs
 					console.log('📋 在 data.jobs 中找到任务数组')
@@ -338,7 +346,7 @@ export default function Step6() {
 			
 			console.log('🔍 解析到的任务数组:', actualJobs)
 			console.log('🔍 任务数组类型:', typeof actualJobs)
-			console.log('🔍 是否为数组:', Array.isArray(actualJobs))
+			console.log('🔍 YesNo为数组:', Array.isArray(actualJobs))
 			
 			if (!actualJobs || !Array.isArray(actualJobs) || actualJobs.length === 0) {
 				console.log('❌ 没有找到有效的任务数组')
@@ -372,9 +380,9 @@ export default function Step6() {
 				console.log('🔧 清理后的 job_id:', cleanJobId)
 			}
 
-			// 生成详情链接
+			// 生成Detail Link
 			const detailUrl = `http://35.208.145.201:8081/#/job/running/${cleanJobId}/overview`
-			console.log('🔗 生成的详情链接:', detailUrl)
+			console.log('🔗 生成的Detail Link:', detailUrl)
 
 			// 立即设置状态
 			console.log('📊 即将设置状态...')
@@ -397,7 +405,7 @@ export default function Step6() {
 			
 			console.log('✅ 任务信息处理完成，取消loading状态')
 			setFlinkStartLoading(false)
-			console.log('✅ 按钮应显示"启动任务"并恢复可点击状态')
+			console.log('✅ 按钮应显示"Start Task"并恢复Clickable状态')
 			return cleanJobId
 
 		} catch (error) {
@@ -432,8 +440,8 @@ export default function Step6() {
 			if (response.success) {
 				setSaveMessage(`🚀 Flink任务已成功启动，正在等待任务信息...`)
 				
-				// 启动成功后，等待15秒查询任务信息 - 期间保持loading状态
-				console.log('⏱️ 15秒后查询任务信息，期间按钮保持"启动中"状态...')
+				// Started Successfully后，等待15秒查询任务信息 - 期间保持loading状态
+				console.log('⏱️ 15秒后查询任务信息，期间按钮保持"Starting"状态...')
 				console.log('📅 当前时间:', new Date().toLocaleTimeString())
 				setTimeout(async () => {
 					console.log('⏰ 15秒到了，开始查询任务信息...')
@@ -447,11 +455,11 @@ export default function Step6() {
 						setFlinkStartLoading(false)
 						setSaveMessage(`❌ 无法获取任务信息`)
 					} else {
-						setSaveMessage(`✅ Flink任务启动成功！任务ID: ${result}`)
+						setSaveMessage(`✅ FlinkTask Started Successfully！Task ID: ${result}`)
 					}
 				}, 15000)
 			} else {
-				setSaveMessage(`❌ Flink任务启动失败: ${response.message || '未知错误'}`)
+				setSaveMessage(`❌ Flink任务Start failed: ${response.message || 'Unknown error'}`)
 				setFlinkStartLoading(false)
 			}
 		} catch (error) {
@@ -463,7 +471,7 @@ export default function Step6() {
 				timestamp: new Date().toLocaleString('zh-CN')
 			}
 			setFlinkStartResult(errorResult)
-			setSaveMessage(`❌ Flink任务启动失败: ${errorResult.message}`)
+			setSaveMessage(`❌ Flink任务Start failed: ${errorResult.message}`)
 			setFlinkStartLoading(false)
 		}
 	}
@@ -490,7 +498,7 @@ export default function Step6() {
 
 
 
-	// 刷新日志内容（不显示加载状态）
+	// 刷新Log Content（不显示加载状态）
 	const refreshLogContent = async (taskId: number) => {
 		try {
 			const response = await api.pipeline.getTaskLog(taskId)
@@ -515,14 +523,14 @@ export default function Step6() {
 		}
 	}
 
-	// 查看日志
+	// View Log
 	const handleViewLog = async () => {
 		if (!taskStatus || !taskStatus.task_id) {
-			console.error('❌ 无法获取任务ID')
+			console.error('❌ 无法获取Task ID')
 			return
 		}
 
-		console.log('📋 开始查看日志:', {
+		console.log('📋 开始View Log:', {
 			task_id: taskStatus.task_id,
 			log_path: taskStatus.log_path
 		})
@@ -561,7 +569,7 @@ export default function Step6() {
 				console.error('❌ 日志加载失败:', response.message)
 			}
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : '未知错误'
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 			setLogContent(`加载日志时发生错误: ${errorMessage}`)
 			console.error('❌ 日志加载异常:', error)
 		} finally {
@@ -569,7 +577,7 @@ export default function Step6() {
 		}
 	}
 
-	// 关闭日志弹出框
+	// Close日志弹出框
 	const handleCloseLogModal = () => {
 		// 清理日志刷新定时器
 		if (logIntervalRef.current) {
@@ -591,11 +599,11 @@ export default function Step6() {
 			<div className="flex items-center justify-between">
 				<h2 className="text-lg font-semibold">Step 6: Complete Configuration</h2>
 				<div className="text-sm text-gray-600">
-					Step 6: 完成配置并保存
+					Step 6: Complete Configuration and Save
 				</div>
 			</div>
 
-			{/* 配置概览 */}
+			{/* Configuration Overview */}
 			<Box title="Configuration Overview">
 				<div className="space-y-4">
 					{/* 管道信息 */}
@@ -618,33 +626,33 @@ export default function Step6() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 						<div className="text-center p-4 bg-blue-50 rounded-lg">
 							<div className="text-2xl font-bold text-blue-600">{components.length}</div>
-							<div className="text-sm text-blue-700">配置的组件</div>
+							<div className="text-sm text-blue-700">Configured Components</div>
 						</div>
 						<div className="text-center p-4 bg-green-50 rounded-lg">
 							<div className="text-2xl font-bold text-green-600">{currentPipelineId || 0}</div>
-							<div className="text-sm text-green-700">当前管道ID</div>
+							<div className="text-sm text-green-700">Current Pipeline ID</div>
 						</div>
 						<div className="text-center p-4 bg-purple-50 rounded-lg">
 							<div className="text-2xl font-bold text-purple-600">6</div>
-							<div className="text-sm text-purple-700">完成的步骤</div>
+							<div className="text-sm text-purple-700">Completed Steps</div>
 						</div>
 					</div>
 
 					<div className="mt-6 space-y-6">
-						{/* 已配置解析任务的组件 (Step1, Step2, Step3) */}
+						{/* Configured Parsing Task Components (Step1, Step2, Step3) */}
 						<div>
 							<div className="flex items-center justify-between mb-3">
 								<div className="flex items-center gap-4">
 									<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
 										<span className="text-blue-600">📊</span>
-										已配置解析任务的组件:
+										Configured Parsing Task Components:
 									</h4>
 									
 									{/* 任务状态显示 */}
 									<div className="flex items-center gap-2">
 										{taskLoading ? (
 											<span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full animate-pulse">
-												查询中...
+												Querying...
 											</span>
 										) : taskStatus ? (
 											<>
@@ -659,34 +667,34 @@ export default function Step6() {
 												</span>
 												<button
 													onClick={handleViewLog}
-													className="px-2 py-1 bg-gray-600 text-white text-xs rounded-md hover:bg-gray-700 transition-colors"
-													title={`查看日志: ${taskStatus.log_path}`}
+													className="px-3 py-1 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 transition-colors flex-shrink-0 min-w-[80px]"
+													title={`View Log: ${taskStatus.log_path}`}
 												>
-													查看日志
+													View Log
 												</button>
 											</>
 										) : (
 											<span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-												未启动
+												Not Started
 											</span>
 										)}
 									</div>
 								</div>
 								
-								<div className="flex gap-2">
+								<div className="flex gap-2 flex-wrap">
 									<button 
-										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 min-w-[140px]"
 										onClick={() => handleSaveParseTask()}
 										disabled={isLoading || !currentPipelineId}
 									>
-										{isLoading ? '保存中...' : '保存配置'}
+										{isLoading ? 'Saving...' : 'Save Configuration'}
 									</button>
 									<button 
-										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+										className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 min-w-[100px]"
 										onClick={() => handleStartParseTask()}
 										disabled={isLoading || !currentPipelineId}
 									>
-										{isLoading ? '启动中...' : '启动任务'}
+										{isLoading ? 'Starting...' : 'Start Task'}
 									</button>
 								</div>
 							</div>
@@ -694,6 +702,8 @@ export default function Step6() {
 								{components
 									.filter(component => 
 										component.type === 'event_monitor' || 
+										component.type === 'evm_contract_caller' || 
+										component.type === 'contract_caller' || 
 										component.type === 'dict_mapper' || 
 										component.type === 'kafka_producer'
 									)
@@ -706,35 +716,38 @@ export default function Step6() {
 											<div>
 												<div className="font-medium text-gray-800">{component.name}</div>
 												<div className="text-sm text-blue-600">
-													{component.type === 'event_monitor' && '事件监控器 (Step1)'}
-													{component.type === 'dict_mapper' && '字段映射 (Step2)'}
-													{component.type === 'kafka_producer' && 'Kafka生产者 (Step3)'}
+													{component.type === 'event_monitor' && 'Event Monitor (Step1)'}
+													{(component.type === 'evm_contract_caller' || component.type === 'contract_caller') && 'Contract Method Query (Step2)'}
+													{component.type === 'dict_mapper' && 'Field Mapping (Step3)'}
+													{component.type === 'kafka_producer' && 'KafkaProducer'}
 												</div>
 											</div>
 										</div>
 										<span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-											解析任务
+											Parse Task
 										</span>
 									</div>
 								))}
 								{components.filter(component => 
 									component.type === 'event_monitor' || 
+									component.type === 'evm_contract_caller' || 
+									component.type === 'contract_caller' || 
 									component.type === 'dict_mapper' || 
 									component.type === 'kafka_producer'
 								).length === 0 && (
 									<div className="p-3 bg-gray-50 rounded-lg text-gray-500 text-center">
-										暂无已配置的解析任务组件
+										No configured parsing task components
 									</div>
 								)}
 							</div>
 						</div>
 
-						{/* FLINK任务控制 */}
+						{/* FLINKTask Control */}
 						<div className="space-y-4">
 							<div className="flex items-center justify-between mb-3">
 								<h4 className="text-lg font-medium text-gray-800 flex items-center gap-2">
 									<span className="text-green-600">⚡</span>
-									FLINK任务控制:
+									FLINKTask Control:
 								</h4>
 							</div>
 							
@@ -742,10 +755,10 @@ export default function Step6() {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="text-sm text-gray-600">
-										{flinkStartLoading ? '正在启动并获取任务信息...' : '点击启动Flink任务'}
+										{flinkStartLoading ? 'Starting and retrieving task information...' : 'Click to start Flink task'}
 									</p>
 									<p className="text-xs text-gray-500 mt-1">
-										{flinkStartLoading ? '请等待任务启动和信息查询完成' : '启动后将自动查询任务信息并生成详情链接'}
+										{flinkStartLoading ? 'Please wait for task startup and information query completion' : 'Task information will be automatically queried and detail link generated after startup'}
 									</p>
 								</div>
 								<button
@@ -753,7 +766,7 @@ export default function Step6() {
 									disabled={flinkStartLoading}
 									className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
-									{flinkStartLoading ? '启动中...' : '启动任务'}
+									{flinkStartLoading ? 'Starting...' : 'Start Task'}
 								</button>
 							</div>
 
@@ -770,15 +783,15 @@ export default function Step6() {
 											<div className={`font-medium ${
 												flinkStartResult.success ? 'text-green-700' : 'text-red-700'
 											}`}>
-												{flinkStartResult.success ? 'Flink任务启动成功' : 'Flink任务启动失败'}
+												{flinkStartResult.success ? 'FlinkTask Started Successfully' : 'FlinkTask Start Failed'}
 											</div>
 											<div className="text-sm text-gray-500">
-												启动时间: {flinkStartResult.timestamp}
+												Start time: {flinkStartResult.timestamp}
 											</div>
 										</div>
 									</div>
 									
-									{/* 任务详情按钮 - 仅在成功时显示 */}
+									{/* Task Details按钮 - 仅在成功时显示 */}
 									{flinkStartResult.success && flinkJobDetailUrl && (
 										<div className="flex justify-center mt-4">
 											<a
@@ -788,31 +801,31 @@ export default function Step6() {
 												className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
 											>
 												<span>🔍</span>
-												任务详情
+												Task Details
 												<span className="text-xs">↗</span>
 											</a>
 										</div>
 									)}
 									
-									{/* 调试信息区域 */}
+									{/* Debug Information区域 */}
 									<div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
 																			<div className="text-sm space-y-1">
-										<div className="font-medium text-yellow-800">调试信息:</div>
+										<div className="font-medium text-yellow-800">Debug Information:</div>
 										<div className="text-yellow-700">
-											按钮状态: {flinkStartLoading ? '🔄 启动中' : '✅ 可点击'}
+											按钮Status: {flinkStartLoading ? '🔄 Starting' : '✅ Clickable'}
 										</div>
 										<div className="text-yellow-700">
-											启动成功: {flinkStartResult?.success ? '✅ 是' : '❌ 否'}
+											Started Successfully: {flinkStartResult?.success ? '✅ Yes' : '❌ No'}
 										</div>
 										<div className="text-yellow-700">
-											详情链接: {flinkJobDetailUrl ? '✅ 已生成' : '❌ 未生成'}
+											Detail Link: {flinkJobDetailUrl ? '✅ Generated' : '❌ Not Generated'}
 										</div>
 										<div className="text-yellow-700">
-											任务ID: {flinkJobId || '未获取'}
+											Task ID: {flinkJobId || 'Not Retrieved'}
 										</div>
 										{flinkJobDetailUrl && (
 											<div className="text-xs text-yellow-600 break-all">
-												链接: {flinkJobDetailUrl}
+												Link: {flinkJobDetailUrl}
 											</div>
 										)}
 									</div>
@@ -821,7 +834,7 @@ export default function Step6() {
 										<div className="mt-3 flex gap-2">
 											<button
 												onClick={async () => {
-													console.log('🧪 手动测试获取任务信息 - 开始')
+													console.log('🧪 Manual Test Get Task Info - 开始')
 													console.log('📅 手动测试时间:', new Date().toLocaleTimeString())
 													
 													// 手动测试时设置loading状态
@@ -843,7 +856,7 @@ export default function Step6() {
 												disabled={flinkStartLoading}
 												className="px-3 py-1 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors disabled:opacity-50"
 											>
-												{flinkStartLoading ? '查询中...' : '手动获取任务信息'}
+												{flinkStartLoading ? 'Querying...' : 'Manual Get Task Info'}
 											</button>
 											<button
 												onClick={() => {
@@ -855,7 +868,7 @@ export default function Step6() {
 												}}
 												className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
 											>
-												打印状态
+												Print Status
 											</button>
 										</div>
 									</div>
@@ -868,13 +881,13 @@ export default function Step6() {
 
 
 
-			{/* 保存结果 */}
+			{/* Save Result */}
 			{saveResult && (
 				<Box title="Save Result">
 					<div className="space-y-3">
 						<div className="flex items-center gap-2">
 							<span className="text-2xl">✅</span>
-							<span className="text-lg font-medium text-green-700">配置保存成功！</span>
+							<span className="text-lg font-medium text-green-700">Configuration Saved Successfully！</span>
 						</div>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div className="p-3 bg-green-50 rounded-lg">
@@ -882,19 +895,19 @@ export default function Step6() {
 								<div className="text-xl font-bold text-green-800">{saveResult.pipeline_id}</div>
 							</div>
 							<div className="p-3 bg-blue-50 rounded-lg">
-								<div className="text-sm text-blue-600">创建组件数</div>
+								<div className="text-sm text-blue-600">Components Created</div>
 								<div className="text-xl font-bold text-blue-800">{saveResult.components_created}</div>
 							</div>
 						</div>
 						<div className="p-3 bg-gray-50 rounded-lg">
-							<div className="text-sm text-gray-600">消息</div>
+							<div className="text-sm text-gray-600">Message</div>
 							<div className="text-gray-800">{saveResult.message}</div>
 						</div>
 					</div>
 				</Box>
 			)}
 
-			{/* 保存消息 */}
+			{/* Save Message */}
 			{saveMessage && (
 				<div className={`p-4 rounded-lg ${
 					saveMessage.includes('✅') ? 'bg-green-50 text-green-700' : 
@@ -916,15 +929,15 @@ export default function Step6() {
 			{logModalOpen && (
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] flex flex-col">
-						{/* 弹出框头部 */}
+						{/* Modal Header */}
 						<div className="flex items-center justify-between p-4 border-b border-gray-200">
 							<div className="flex items-center gap-3">
 								<span className="text-xl">📋</span>
 								<div>
-									<h3 className="text-lg font-semibold text-gray-800">任务日志</h3>
+									<h3 className="text-lg font-semibold text-gray-800">Task Log</h3>
 									{logInfo && (
 										<p className="text-sm text-gray-600">
-											任务ID: {logInfo.task_id} | 路径: {logInfo.log_path}
+											Task ID: {logInfo.task_id} | Path: {logInfo.log_path}
 										</p>
 									)}
 								</div>
@@ -937,43 +950,54 @@ export default function Step6() {
 							</button>
 						</div>
 
-						{/* 日志信息 */}
+						{/* Log Information */}
 						{logInfo && (
 							<div className="px-4 py-2 bg-gray-50 border-b border-gray-200 text-sm text-gray-600">
-								总行数: {logInfo.total_lines} | 返回行数: {logInfo.returned_lines}
+								Total Lines: {logInfo.total_lines} | Returned Lines: {logInfo.returned_lines}
 								{logInfo.returned_lines < logInfo.total_lines && (
 									<span className="text-orange-600 ml-2">
-										(显示部分日志内容)
+										(Showing partial log content)
 									</span>
 								)}
 							</div>
 						)}
 
-						{/* 日志内容 */}
+						{/* Log Content */}
 						<div className="flex-1 p-4 overflow-hidden">
 							{logLoading ? (
 								<div className="flex items-center justify-center h-32">
 									<div className="flex items-center gap-2 text-gray-600">
 										<div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-										<span>加载日志中...</span>
+										<span>Loading log...</span>
 									</div>
 								</div>
 							) : (
-								<div className="h-full overflow-auto">
-									<pre className="text-sm font-mono bg-gray-900 text-green-400 p-4 rounded-lg whitespace-pre-wrap break-words">
-										{logContent || '暂无日志内容'}
-									</pre>
+								<div className="h-full border-2 border-gray-300 rounded-lg bg-gray-100">
+									<div 
+										className="w-full bg-gray-900 text-green-400 text-sm font-mono leading-relaxed p-4"
+										style={{
+											height: '400px',
+											overflowY: 'scroll',
+											overflowX: 'auto',
+											scrollbarWidth: 'auto',
+											scrollbarColor: '#9CA3AF #374151'
+										}}
+									>
+										<pre className="whitespace-pre-wrap break-words m-0 p-0">
+											{logContent || 'No log content'}
+										</pre>
+									</div>
 								</div>
 							)}
 						</div>
 
-						{/* 弹出框底部 */}
+						{/* Modal Footer */}
 						<div className="flex justify-end gap-2 p-4 border-t border-gray-200">
 							<button
 								onClick={handleCloseLogModal}
 								className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
 							>
-								关闭
+								Close
 							</button>
 						</div>
 					</div>

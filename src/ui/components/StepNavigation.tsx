@@ -6,11 +6,12 @@ interface StepNavigationProps {
 }
 
 const steps = [
-	{ id: 1, name: 'Step 1: Define Data Plan', type: 'step1' },
-	{ id: 2, name: 'Step 2: Field Mapping Rules', type: 'step2' },
-	{ id: 3, name: 'Step 3: Kafka Producer', type: 'step3' },
-	{ id: 4, name: 'Step 4: Upload Data Storage Configuration', type: 'step4' },
-	{ id: 5, name: 'Step 5: Data Ingestion', type: 'step5' },
+	{ id: 1, name: 'Step 1: Smart ABI Selection', type: 'step1' },
+	{ id: 2, name: 'Step 2: Contract Method Query', type: 'step2' },
+	{ id: 3, name: 'Step 3: Mapping Rules & Decimal Config', type: 'step3' },
+	{ id: 4, name: 'Step 4: Kafka Producer', type: 'step4' },
+	{ id: 5, name: 'Step 5: Data Storage Configuration', type: 'step5' },
+	{ id: 6, name: 'Step 6: Complete Configuration', type: 'step6' },
 ]
 
 export default function StepNavigation({ currentStep, onStepChange }: StepNavigationProps) {

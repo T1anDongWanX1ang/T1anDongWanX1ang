@@ -17,7 +17,7 @@ interface ViewAbiModalProps extends BaseModalProps {
 }
 interface UploadAbiModalProps extends BaseModalProps {}
 
-// 添加ABI模态框
+// Add ABI Modal
 export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 	const toast = useToast()
 	const [formData, setFormData] = useState({
@@ -25,7 +25,8 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 		contract_name: '',
 		chain_name: 'ethereum',
 		abi_content: '',
-		source_type: 'manual' as 'manual' | 'auto_fetch'
+		file_path: '',
+		source_type: 'manual' as 'manual' | 'auto'
 	})
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState('')
@@ -40,13 +41,14 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 		{ value: 'optimism', label: 'Optimism' }
 	]
 
-	// 重置表单
+	// Reset form
 	const resetForm = () => {
 		setFormData({
 			contract_address: '',
 			contract_name: '',
 			chain_name: 'ethereum',
 			abi_content: '',
+			file_path: '',
 			source_type: 'manual'
 		})
 		setError('')
@@ -54,15 +56,15 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 		setAbiStats(null)
 	}
 
-	// 自动获取ABI
+	// Auto FetchABI
 	const handleAutoFetch = async () => {
 		if (!formData.contract_address || !formData.chain_name) {
-			setError('请先填写合约地址和选择区块链')
+			setError('Please fill in contract address and select blockchain first')
 			return
 		}
 
 		if (!AbiService.validateContractAddress(formData.contract_address, formData.chain_name)) {
-			setError('合约地址格式不正确')
+			setError('Contract address format is incorrect')
 			return
 		}
 
@@ -70,7 +72,7 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 		setError('')
 
 		try {
-			const response = await AbiService.autoFetchAbi({
+			const response = await AbiService.fetchAbiOnly({
 				contract_address: formData.contract_address,
 				chain_name: formData.chain_name
 			})
@@ -80,45 +82,46 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 				setFormData(prev => ({
 					...prev,
 					abi_content: formattedAbi,
-					source_type: 'auto_fetch'
+					file_path: response.data.file_path,
+					source_type: 'auto'
 				}))
 				setIsAutoFetch(true)
 				
-				// 提取ABI统计信息用于显示
-				const abiArray = response.data.abi_content
-				const functions = abiArray?.filter((item: any) => item.type === 'function')?.length || 0
-				const events = abiArray?.filter((item: any) => item.type === 'event')?.length || 0
-				setAbiStats({ functions, events })
-				console.log(`🎉 ABI获取成功！包含 ${functions} 个函数，${events} 个事件`)
+				// Use the statistics from the API response
+				setAbiStats({ 
+					functions: response.data.functions_count || 0, 
+					events: response.data.events_count || 0 
+				})
+				console.log(`🎉 ABI fetched successfully! Contains ${response.data.functions_count} functions, ${response.data.events_count} events`)
 			} else {
-				setError('自动获取ABI失败: ' + response.message)
+				setError('Auto fetch ABI failed: ' + response.message)
 			}
 		} catch (err) {
-			setError('自动获取ABI失败: ' + (err instanceof Error ? err.message : '未知错误'))
+			setError('Auto fetch ABI failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
 		} finally {
 			setLoading(false)
 		}
 	}
 
-	// 提交表单
+	// Submit form
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		
-		if (!formData.contract_address || !formData.chain_name || !formData.abi_content.trim()) {
-			setError('请填写所有必填字段')
+		if (!formData.contract_address || !formData.chain_name || !formData.abi_content.trim() || !formData.contract_name.trim()) {
+			setError('Please fill in all required fields')
 			return
 		}
 
 		if (!AbiService.validateContractAddress(formData.contract_address, formData.chain_name)) {
-			setError('合约地址格式不正确')
+			setError('Contract address format is incorrect')
 			return
 		}
 
-		// 验证ABI内容是否为有效JSON
+		// Validate if ABI content is valid JSON
 		try {
 			JSON.parse(formData.abi_content)
 		} catch {
-			setError('ABI内容不是有效的JSON格式')
+			setError('ABI content is not valid JSON format')
 			return
 		}
 
@@ -128,8 +131,10 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 		try {
 			const response = await AbiService.createAbi({
 				contract_address: formData.contract_address,
+				contract_name: formData.contract_name,
 				chain_name: formData.chain_name,
 				abi_content: JSON.parse(formData.abi_content),
+				file_path: formData.file_path,
 				source_type: formData.source_type
 			})
 
@@ -138,16 +143,16 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 				onClose()
 				resetForm()
 			} else {
-				setError('创建ABI失败: ' + response.message)
+				setError('Create ABI failed: ' + response.message)
 			}
 		} catch (err) {
-			setError('创建ABI失败: ' + (err instanceof Error ? err.message : '未知错误'))
+			setError('Create ABI failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
 		} finally {
 			setLoading(false)
 		}
 	}
 
-	// 模态框关闭时重置表单
+	// Reset form when modal closes
 	useEffect(() => {
 		if (!isOpen) {
 			resetForm()
@@ -158,9 +163,9 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 
 	return (
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-			<div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
-				<div className="flex items-center justify-between p-6 border-b border-gray-200">
-					<h2 className="text-xl font-semibold text-gray-900">添加ABI</h2>
+			<div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+				<div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+					<h2 className="text-xl font-semibold text-gray-900">Add ABI</h2>
 					<button
 						onClick={onClose}
 						className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -169,8 +174,8 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 					</button>
 				</div>
 
-				<form onSubmit={handleSubmit} className="flex flex-col h-full">
-					<div className="flex-1 overflow-auto p-6">
+				<form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+					<div className="flex-1 overflow-y-auto p-6">
 						{error && (
 							<div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
 								<p className="text-sm text-red-600">{error}</p>
@@ -178,28 +183,28 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 						)}
 
 						<div className="space-y-6">
-							{/* 合约名称 */}
+							{/* Contract Name */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									合约名称
-									<span className="text-gray-500 text-xs ml-2">(可选，便于识别)</span>
+									Contract Name <span className="text-red-500">*</span>
 								</label>
 								<input
 									type="text"
 									value={formData.contract_name}
 									onChange={(e) => setFormData(prev => ({ ...prev, contract_name: e.target.value.trim() }))}
-									placeholder="例如: USDT, UniswapV3Pool, 等..."
+									placeholder="e.g.: USDT, UniswapV3Pool, etc..."
 									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+									required
 								/>
 								<p className="mt-1 text-xs text-gray-500">
-									为合约设置一个易记的名称，方便后续管理和识别
+									Set a memorable name for the contract to facilitate management and identification
 								</p>
 							</div>
 
-							{/* 合约地址 */}
+							{/* Contract Address */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									合约地址 <span className="text-red-500">*</span>
+									Contract Address <span className="text-red-500">*</span>
 								</label>
 								<input
 									type="text"
@@ -211,10 +216,10 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 								/>
 							</div>
 
-							{/* 区块链选择 */}
+							{/* Blockchain Selection */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									区块链 <span className="text-red-500">*</span>
+									Blockchain <span className="text-red-500">*</span>
 								</label>
 								<select
 									value={formData.chain_name}
@@ -230,12 +235,12 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 								</select>
 							</div>
 
-							{/* 自动获取ABI */}
+							{/* Auto FetchABI */}
 							<div className="bg-blue-50 p-4 rounded-md">
 								<div className="flex items-center justify-between mb-2">
 									<div>
-										<h4 className="font-medium text-blue-900">自动获取ABI</h4>
-										<p className="text-sm text-blue-700">从区块链浏览器自动获取合约ABI</p>
+										<h4 className="font-medium text-blue-900">Auto FetchABI</h4>
+										<p className="text-sm text-blue-700">Auto fetch contract ABI from blockchain explorer</p>
 									</div>
 									<button
 										type="button"
@@ -243,17 +248,17 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 										disabled={loading || !formData.contract_address}
 										className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 									>
-										{loading ? '获取中...' : '自动获取'}
+										{loading ? 'Fetching...' : 'Auto Fetch'}
 									</button>
 								</div>
 								{isAutoFetch && (
 									<div className="text-sm text-green-700 flex items-center gap-2">
 										<span className="text-green-500">✓</span>
 										<div>
-											<div>ABI已自动获取成功</div>
+											<div>ABI auto-fetched successfully</div>
 											{abiStats && (
 												<div className="text-xs text-green-600 mt-1">
-													包含 {abiStats.functions} 个函数，{abiStats.events} 个事件，已格式化显示
+													Contains {abiStats.functions} functions, {abiStats.events} events, formatted for display
 												</div>
 											)}
 										</div>
@@ -261,30 +266,30 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 								)}
 							</div>
 
-							{/* ABI内容 */}
+							{/* ABI Content */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									ABI内容 <span className="text-red-500">*</span>
+									ABI Content <span className="text-red-500">*</span>
 								</label>
 								<textarea
 									value={formData.abi_content}
 									onChange={(e) => setFormData(prev => ({ ...prev, abi_content: e.target.value }))}
-									placeholder="请输入ABI JSON内容或使用上方的自动获取功能..."
+									placeholder="Please enter ABI JSON content or use the Auto Fetch function above..."
 									className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y overflow-y-scroll"
 									required
 								/>
 								<p className="mt-2 text-sm text-gray-500">
 									{isAutoFetch && formData.abi_content ? (
 										<>
-											<span className="text-green-600">✓ ABI内容已自动获取并格式化</span>
+											<span className="text-green-600">✓ ABI content auto-fetched and formatted</span>
 											{abiStats && (
 												<span className="ml-2 text-gray-400">
-													({abiStats.functions} 个函数, {abiStats.events} 个事件)
+													({abiStats.functions} functions, {abiStats.events} events)
 												</span>
 											)}
 										</>
 									) : (
-										'请输入有效的JSON格式的ABI内容，或使用上方的自动获取功能'
+										'Please enter valid JSON format ABI content, or use the Auto Fetch function above'
 									)}
 								</p>
 							</div>
@@ -297,14 +302,14 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 							onClick={onClose}
 							className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
 						>
-							取消
+							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={loading}
 							className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 						>
-							{loading ? '创建中...' : '创建ABI'}
+							{loading ? 'Creating...' : 'Create ABI'}
 						</button>
 					</div>
 				</form>
@@ -313,7 +318,7 @@ export function AddAbiModal({ isOpen, onClose, onSuccess }: AddAbiModalProps) {
 	)
 }
 
-// 编辑ABI模态框
+// Edit ABI Modal
 export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalProps) {
 	const [formData, setFormData] = useState({
 		contract_address: '',
@@ -332,7 +337,7 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 		{ value: 'optimism', label: 'Optimism' }
 	]
 
-	// 初始化表单数据
+	// Initialize form data
 	useEffect(() => {
 		if (isOpen && abi) {
 			setFormData({
@@ -345,25 +350,25 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 		}
 	}, [isOpen, abi])
 
-	// 提交表单
+	// Submit form
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		
 		if (!formData.contract_address || !formData.chain_name || !formData.abi_content.trim()) {
-			setError('请填写所有必填字段')
+			setError('Please fill in all required fields')
 			return
 		}
 
 		if (!AbiService.validateContractAddress(formData.contract_address, formData.chain_name)) {
-			setError('合约地址格式不正确')
+			setError('Contract address format is incorrect')
 			return
 		}
 
-		// 验证ABI内容是否为有效JSON
+		// Validate if ABI content is valid JSON
 		try {
 			JSON.parse(formData.abi_content)
 		} catch {
-			setError('ABI内容不是有效的JSON格式')
+			setError('ABI content is not valid JSON format')
 			return
 		}
 
@@ -381,10 +386,10 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 				onSuccess()
 				onClose()
 			} else {
-				setError('更新ABI失败: ' + response.message)
+				setError('Update ABI failed: ' + response.message)
 			}
 		} catch (err) {
-			setError('更新ABI失败: ' + (err instanceof Error ? err.message : '未知错误'))
+			setError('Update ABI failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
 		} finally {
 			setLoading(false)
 		}
@@ -396,7 +401,7 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 			<div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
 				<div className="flex items-center justify-between p-6 border-b border-gray-200">
-					<h2 className="text-xl font-semibold text-gray-900">编辑ABI</h2>
+					<h2 className="text-xl font-semibold text-gray-900">Edit ABI</h2>
 					<button
 						onClick={onClose}
 						className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -414,7 +419,7 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 						)}
 
 						<div className="space-y-6">
-							{/* ABI ID (只读) */}
+							{/* ABI ID (Read Only) */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
 									ABI ID
@@ -427,25 +432,25 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 								/>
 							</div>
 
-							{/* 合约名称 */}
+							{/* Contract Name */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									合约名称
-									<span className="text-gray-500 text-xs ml-2">(可选，便于识别)</span>
+									Contract Name
+									<span className="text-gray-500 text-xs ml-2">(Optional, for identification)</span>
 								</label>
 								<input
 									type="text"
 									value={formData.contract_name}
 									onChange={(e) => setFormData(prev => ({ ...prev, contract_name: e.target.value.trim() }))}
-									placeholder="例如: USDT, UniswapV3Pool, 等..."
+									placeholder="e.g.: USDT, UniswapV3Pool, etc..."
 									className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 								/>
 							</div>
 
-							{/* 合约地址 */}
+							{/* Contract Address */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									合约地址 <span className="text-red-500">*</span>
+									Contract Address <span className="text-red-500">*</span>
 								</label>
 								<input
 									type="text"
@@ -456,10 +461,10 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 								/>
 							</div>
 
-							{/* 区块链选择 */}
+							{/* Blockchain Selection */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									区块链 <span className="text-red-500">*</span>
+									Blockchain <span className="text-red-500">*</span>
 								</label>
 								<select
 									value={formData.chain_name}
@@ -475,10 +480,10 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 								</select>
 							</div>
 
-							{/* ABI内容 */}
+							{/* ABI Content */}
 							<div>
 								<label className="block text-sm font-medium text-gray-700 mb-2">
-									ABI内容 <span className="text-red-500">*</span>
+									ABI Content <span className="text-red-500">*</span>
 								</label>
 								<textarea
 									value={formData.abi_content}
@@ -487,7 +492,7 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 									required
 								/>
 								<p className="mt-2 text-sm text-gray-500">
-									请输入有效的JSON格式的ABI内容
+									Please enter valid JSON format ABI content
 								</p>
 							</div>
 						</div>
@@ -499,14 +504,14 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 							onClick={onClose}
 							className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
 						>
-							取消
+							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={loading}
 							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 						>
-							{loading ? '保存中...' : '保存更改'}
+							{loading ? 'Saving...' : 'Save Changes'}
 						</button>
 					</div>
 				</form>
@@ -515,7 +520,7 @@ export function EditAbiModal({ isOpen, onClose, onSuccess, abi }: EditAbiModalPr
 	)
 }
 
-// 查看ABI模态框
+// View ABI Modal
 export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 	const [activeTab, setActiveTab] = useState<'raw' | 'functions' | 'events'>('raw')
 
@@ -529,7 +534,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 			<div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
 				<div className="flex items-center justify-between p-6 border-b border-gray-200">
 					<div>
-						<h2 className="text-xl font-semibold text-gray-900">查看ABI详情</h2>
+						<h2 className="text-xl font-semibold text-gray-900">View ABI Details</h2>
 						<p className="text-sm text-gray-500 mt-1">
 							{abi.contract_address} ({abi.chain_name})
 						</p>
@@ -543,35 +548,35 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 				</div>
 
 				<div className="flex flex-col h-full">
-					{/* ABI信息摘要 */}
+					{/* ABI Information Summary */}
 					<div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
 							<div>
-								<span className="font-medium text-gray-700">来源类型：</span>
+								<span className="font-medium text-gray-700">Source Type:</span>
 								<span className={`ml-2 px-2 py-1 rounded-full text-xs ${
-									abi.source_type === 'auto_fetch' 
+									abi.source_type === 'auto' 
 										? 'bg-green-100 text-green-800' 
 										: 'bg-yellow-100 text-yellow-800'
 								}`}>
-									{abi.source_type === 'auto_fetch' ? '自动获取' : '手动添加'}
+									{abi.source_type === 'auto' ? 'Auto Fetch' : 'Manual'}
 								</span>
 							</div>
 							<div>
-								<span className="font-medium text-gray-700">函数数量：</span>
+								<span className="font-medium text-gray-700">Functions Count:</span>
 								<span className="ml-2 text-blue-600">{functions.length}</span>
 							</div>
 							<div>
-								<span className="font-medium text-gray-700">事件数量：</span>
+								<span className="font-medium text-gray-700">Events Count:</span>
 								<span className="ml-2 text-purple-600">{events.length}</span>
 							</div>
 							<div>
-								<span className="font-medium text-gray-700">创建时间：</span>
-								<span className="ml-2 text-gray-600">{new Date(abi.created_at).toLocaleDateString('zh-CN')}</span>
+								<span className="font-medium text-gray-700">Creation Time:</span>
+								<span className="ml-2 text-gray-600">{new Date(abi.created_at).toLocaleDateString('en-US')}</span>
 							</div>
 						</div>
 					</div>
 
-					{/* 标签页 */}
+					{/* Tab Navigation */}
 					<div className="border-b border-gray-200">
 						<div className="flex">
 							<button
@@ -582,7 +587,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 										: 'border-transparent text-gray-500 hover:text-gray-700'
 								}`}
 							>
-								原始ABI
+								Raw ABI
 							</button>
 							<button
 								onClick={() => setActiveTab('functions')}
@@ -592,7 +597,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 										: 'border-transparent text-gray-500 hover:text-gray-700'
 								}`}
 							>
-								函数列表 ({functions.length})
+								Function List ({functions.length})
 							</button>
 							<button
 								onClick={() => setActiveTab('events')}
@@ -602,17 +607,17 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 										: 'border-transparent text-gray-500 hover:text-gray-700'
 								}`}
 							>
-								事件列表 ({events.length})
+								Event List ({events.length})
 							</button>
 						</div>
 					</div>
 
-					{/* 标签页内容 */}
+					{/* Tab Content */}
 					<div className="flex-1 overflow-auto p-6">
 						{activeTab === 'raw' && (
 							<div>
 								<div className="mb-4">
-									<h3 className="text-lg font-medium text-gray-900 mb-2">ABI JSON内容</h3>
+									<h3 className="text-lg font-medium text-gray-900 mb-2">ABI JSON Content</h3>
 									<button
 										onClick={() => {
 											const text = AbiService.formatAbiForDisplay(abi.abi_content)
@@ -620,7 +625,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 										}}
 										className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
 									>
-										复制到剪贴板
+										Copy to Clipboard
 									</button>
 								</div>
 								<pre className="bg-gray-50 p-4 rounded-md overflow-auto text-sm max-h-96">
@@ -631,9 +636,9 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 
 						{activeTab === 'functions' && (
 							<div>
-								<h3 className="text-lg font-medium text-gray-900 mb-4">合约函数列表</h3>
+								<h3 className="text-lg font-medium text-gray-900 mb-4">Contract Function List</h3>
 								{functions.length > 0 ? (
-									<div className="space-y-2">
+									<div className="space-y-2 max-h-96 overflow-y-auto pr-2">
 										{functions.map((func, index) => (
 											<div key={index} className="p-3 bg-blue-50 rounded-md">
 												<span className="font-mono text-sm text-blue-900">{func}()</span>
@@ -642,7 +647,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 									</div>
 								) : (
 									<div className="text-center py-8 text-gray-500">
-										未找到函数定义
+										No function definitions found
 									</div>
 								)}
 							</div>
@@ -650,9 +655,9 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 
 						{activeTab === 'events' && (
 							<div>
-								<h3 className="text-lg font-medium text-gray-900 mb-4">合约事件列表</h3>
+								<h3 className="text-lg font-medium text-gray-900 mb-4">Contract Event List</h3>
 								{events.length > 0 ? (
-									<div className="space-y-2">
+									<div className="space-y-2 max-h-96 overflow-y-auto pr-2">
 										{events.map((event, index) => (
 											<div key={index} className="p-3 bg-purple-50 rounded-md">
 												<span className="font-mono text-sm text-purple-900">{event}</span>
@@ -661,7 +666,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 									</div>
 								) : (
 									<div className="text-center py-8 text-gray-500">
-										未找到事件定义
+										No event definitions found
 									</div>
 								)}
 							</div>
@@ -673,7 +678,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 							onClick={onClose}
 							className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
 						>
-							关闭
+							Close
 						</button>
 					</div>
 				</div>
@@ -682,7 +687,7 @@ export function ViewAbiModal({ isOpen, onClose, abi }: ViewAbiModalProps) {
 	)
 }
 
-// 上传ABI文件模态框
+// Upload ABI File Modal
 export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalProps) {
 	const [formData, setFormData] = useState({
 		contract_address: '',
@@ -702,7 +707,7 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 		{ value: 'optimism', label: 'Optimism' }
 	]
 
-	// 重置表单
+	// Reset form
 	const resetForm = () => {
 		setFormData({
 			contract_address: '',
@@ -714,15 +719,15 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 		setDragActive(false)
 	}
 
-	// 处理文件选择
+	// Handle file selection
 	const handleFileSelect = (file: File) => {
 		if (!file.name.toLowerCase().endsWith('.json')) {
-			setError('请选择JSON格式的ABI文件')
+			setError('Please select a JSON format ABI file')
 			return
 		}
 		
-		if (file.size > 1024 * 1024) { // 1MB限制
-			setError('文件大小不能超过1MB')
+		if (file.size > 1024 * 1024) { // 1MB limit
+			setError('File size cannot exceed 1MB')
 			return
 		}
 
@@ -730,7 +735,7 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 		setError('')
 	}
 
-	// 处理拖放
+	// Handle drag and drop
 	const handleDrop = (e: React.DragEvent) => {
 		e.preventDefault()
 		setDragActive(false)
@@ -741,17 +746,17 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 		}
 	}
 
-	// 提交表单
+	// Submit form
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
 		
 		if (!formData.contract_address || !formData.chain_name || !selectedFile) {
-			setError('请填写所有必填字段并选择文件')
+			setError('Please fill in all required fields and select a file')
 			return
 		}
 
 		if (!AbiService.validateContractAddress(formData.contract_address, formData.chain_name)) {
-			setError('合约地址格式不正确')
+			setError('Contract address format is incorrect')
 			return
 		}
 
@@ -770,16 +775,16 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 				onClose()
 				resetForm()
 			} else {
-				setError('上传文件失败: ' + response.message)
+				setError('Upload file failed: ' + response.message)
 			}
 		} catch (err) {
-			setError('上传文件失败: ' + (err instanceof Error ? err.message : '未知错误'))
+			setError('Upload file failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
 		} finally {
 			setLoading(false)
 		}
 	}
 
-	// 模态框关闭时重置表单
+	// Reset form when modal closes
 	useEffect(() => {
 		if (!isOpen) {
 			resetForm()
@@ -792,7 +797,7 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 			<div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
 				<div className="flex items-center justify-between p-6 border-b border-gray-200">
-					<h2 className="text-xl font-semibold text-gray-900">上传ABI文件</h2>
+					<h2 className="text-xl font-semibold text-gray-900">Upload ABI File</h2>
 					<button
 						onClick={onClose}
 						className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -809,25 +814,24 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 					)}
 
 					<div className="space-y-6">
-						{/* 合约名称 */}
+						{/* Contract Name */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-2">
-								合约名称
-								<span className="text-gray-500 text-xs ml-2">(可选，便于识别)</span>
+								Contract Name <span className="text-red-500">*</span>
 							</label>
 							<input
 								type="text"
 								value={formData.contract_name}
 								onChange={(e) => setFormData(prev => ({ ...prev, contract_name: e.target.value.trim() }))}
-								placeholder="例如: USDT, UniswapV3Pool, 等..."
+								placeholder="e.g.: USDT, UniswapV3Pool, etc..."
 								className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 							/>
 						</div>
 
-						{/* 合约地址 */}
+						{/* Contract Address */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-2">
-								合约地址 <span className="text-red-500">*</span>
+								Contract Address <span className="text-red-500">*</span>
 							</label>
 							<input
 								type="text"
@@ -839,10 +843,10 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 							/>
 						</div>
 
-						{/* 区块链选择 */}
+						{/* Blockchain Selection */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-2">
-								区块链 <span className="text-red-500">*</span>
+								Blockchain <span className="text-red-500">*</span>
 							</label>
 							<select
 								value={formData.chain_name}
@@ -858,10 +862,10 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 							</select>
 						</div>
 
-						{/* 文件上传区域 */}
+						{/* File Upload Area */}
 						<div>
 							<label className="block text-sm font-medium text-gray-700 mb-2">
-								ABI文件 <span className="text-red-500">*</span>
+								ABI File <span className="text-red-500">*</span>
 							</label>
 							<div
 								className={`border-2 border-dashed rounded-lg p-6 text-center ${
@@ -892,18 +896,18 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 											onClick={() => setSelectedFile(null)}
 											className="text-sm text-red-600 hover:text-red-800"
 										>
-											移除文件
+											Remove File
 										</button>
 									</div>
 								) : (
 									<div className="space-y-2">
 										<div className="text-4xl text-gray-400">📁</div>
 										<div className="text-sm font-medium text-gray-900">
-											拖拽文件到此处，或者
+											Drag files here, or
 										</div>
 										<label className="cursor-pointer">
 											<span className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-												点击选择文件
+												Click to select file
 											</span>
 											<input
 												type="file"
@@ -916,7 +920,7 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 											/>
 										</label>
 										<div className="text-xs text-gray-500">
-											支持JSON格式，最大1MB
+											Supports JSON format, maximum 1MB
 										</div>
 									</div>
 								)}
@@ -930,14 +934,14 @@ export function UploadAbiModal({ isOpen, onClose, onSuccess }: UploadAbiModalPro
 							onClick={onClose}
 							className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
 						>
-							取消
+							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={loading}
 							className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 						>
-							{loading ? '上传中...' : '上传文件'}
+							{loading ? 'Uploading...' : 'Upload File'}
 						</button>
 					</div>
 				</form>

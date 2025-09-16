@@ -8,7 +8,9 @@ export interface ContractAbi {
 	chain_name: string
 	abi_content: any // JSON ABI内容
 	file_path?: string
-	source_type: 'manual' | 'auto_fetch'
+	file_name?: string // 添加file_name字段
+	abi_path?: string // 添加abi_path字段
+	source_type: 'manual' | 'auto'
 	created_at: string
 	updated_at: string
 }
@@ -38,7 +40,8 @@ export interface AbiCreateRequest {
 	contract_name?: string // 支持合约名称
 	chain_name: string
 	abi_content?: any
-	source_type: 'manual' | 'auto_fetch'
+	file_path?: string // 文件路径
+	source_type: 'manual' | 'auto'
 }
 
 export interface AbiUpdateRequest {
@@ -230,7 +233,47 @@ export class AbiService {
 		}
 	}
 
-	// 自动从区块链浏览器获取ABI
+	// 仅获取ABI数据（不保存）- 用于前端预览
+	static async fetchAbiOnly(data: AutoFetchRequest): Promise<{success: boolean; data: {abi_content: any; file_path: string; functions_count: number; events_count: number}; message: string}> {
+		const endpoint = '/api/v1/abis/fetch-only'
+		
+		// 为自动获取ABI设置更长的超时时间（2分钟）
+		const url = `${currentApiConfig.baseUrl}${endpoint}`
+		
+		try {
+			const controller = new AbortController()
+			const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分钟超时
+			
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					...DEFAULT_HEADERS,
+				},
+				body: JSON.stringify(data),
+				signal: controller.signal
+			})
+			
+			clearTimeout(timeoutId)
+			
+			if (!response.ok) {
+				const errorMessage = ERROR_CODES[response.status as keyof typeof ERROR_CODES] || `HTTP ${response.status}`
+				throw new Error(errorMessage)
+			}
+			
+			return await response.json()
+		} catch (error) {
+			console.error('获取ABI数据失败:', error)
+			
+			// 如果是超时错误，给出更友好的错误消息
+			if (error instanceof Error && error.name === 'AbortError') {
+				throw new Error('获取ABI数据超时，请稍后重试')
+			}
+			
+			throw error
+		}
+	}
+
+	// 自动从区块链浏览器获取ABI并保存
 	static async autoFetchAbi(data: AutoFetchRequest): Promise<AbiResponse> {
 		const endpoint = '/api/v1/abis/auto-fetch'
 		
