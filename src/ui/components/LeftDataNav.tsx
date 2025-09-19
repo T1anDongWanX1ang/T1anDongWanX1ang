@@ -1,14 +1,17 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppState } from '../../state/AppState'
+import { useAuth } from '../../contexts/AuthContext'
 import { useState, useEffect } from 'react'
 import { api } from '../../services/api'
 import type { PipelineTreeNode, PipelineCreateRequest } from '../../services/api'
 
 // Menu item type definition
-type MenuSection = 'config' | 'abi' | 'management'
+type MenuSection = 'config' | 'abi' | 'management' | 'users'
 
 // Menu item configuration
-const menuItems = [
+const getMenuItems = (userRole?: string) => {
+	console.log('getMenuItems - userRole:', userRole)
+	const items = [
 	{
 		id: 'management' as MenuSection,
 		name: 'Unified Management',
@@ -26,35 +29,52 @@ const menuItems = [
 		name: 'ABI Management',
 		icon: '📄',
 		description: 'Smart contract ABI files'
-	}
+	},
+	// Only admins can see user management
+	...(userRole === 'admin' ? [{
+		id: 'users' as MenuSection,
+		name: 'User Management',
+		icon: '👥',
+		description: 'Manage users and permissions'
+	}] : [])
 ]
+	console.log('getMenuItems - final items:', items)
+	return items
+}
 
 interface LeftDataNavProps {
 	onOpenTab?: (tabType: MenuSection, pipelineId?: number) => void
 }
 
 export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
-	const { 
-		chains, 
+	const {
+		chains,
 		columns,
-		currentChainId, 
-		currentProtocolId, 
+		currentChainId,
+		currentProtocolId,
 		currentColumnId,
 		currentPipelineId,
-		createChain, 
-		deleteChain, 
+		createChain,
+		deleteChain,
 		setCurrentChain,
 		setCurrentProtocolId,
-		createColumn, 
-		deleteColumn, 
+		createColumn,
+		deleteColumn,
 		setCurrentColumn,
 		setCurrentPipeline,
 		loadPipelineConfig,
 		components
 	} = useAppState()
 
+	const { authState } = useAuth()
 	const navigate = useNavigate()
 	const [activeSection, setActiveSection] = useState<MenuSection>('config')
+
+	// 调试用户角色信息
+	console.log('LeftDataNav - authState:', authState)
+	console.log('LeftDataNav - user object:', authState.user)
+	console.log('LeftDataNav - user role:', authState.user?.role)
+	console.log('LeftDataNav - user keys:', authState.user ? Object.keys(authState.user) : 'no user')
 	const [expandedChains, setExpandedChains] = useState<Set<string>>(new Set())
 	const [expandedBizTypes, setExpandedBizTypes] = useState<Set<string>>(new Set())
 	const [showProtocolInput, setShowProtocolInput] = useState<string>('')
@@ -421,12 +441,12 @@ export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {
 				{/* Vertical Menu */}
 				<div className="flex-1 p-3">
 					<div className="space-y-2">
-						{menuItems.map(item => (
+						{getMenuItems(authState.user?.role).map(item => (
 							<button
 								key={item.id}
 								onClick={() => {
 									setActiveSection(item.id)
-									// Open Tab every click (RightTabSystem handles duplicate checks)
+									// 所有菜单项都通过Tab系统打开
 									onOpenTab?.(item.id)
 								}}
 								className={`w-full text-left p-3 rounded-lg transition-colors ${
