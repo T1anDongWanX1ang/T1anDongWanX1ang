@@ -351,7 +351,7 @@ export default function Step3MappingRules({ onStepChange }: Step3Props = {}) {
 		info('Querying', 'Querying contract decimal precision...')
 		const decimalsInfo = await fetchContractDecimals(selectedContract.address, selectedContract.chainName)
 		
-		if (decimalsInfo.decimals !== undefined) {
+		if ('decimals' in decimalsInfo && decimalsInfo.decimals !== undefined) {
 			const transformer = `decimal_normalize(${decimalsInfo.decimals})`
 			updateMappingRule(eventIndex, ruleIndex, 'transformer', transformer)
 			success('Success', `Added decimal transformer (precision: ${decimalsInfo.decimals})`)
@@ -535,7 +535,7 @@ export default function Step3MappingRules({ onStepChange }: Step3Props = {}) {
 						{decimalCache[`${selectedContract.address}_${selectedContract.chainName}`] && (
 							<div className="text-sm mt-1">
 								<span className="font-medium">Decimals:</span>{' '}
-								{decimalCache[`${selectedContract.address}_${selectedContract.chainName}`].decimals || 'Query Failed'}
+								{decimalCache[`${selectedContract.address}_${selectedContract.chainName}`]?.decimals || 'Query Failed'}
 							</div>
 						)}
 					</div>

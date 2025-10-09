@@ -1,4 +1,5 @@
 import { currentApiConfig, API_ENDPOINTS, DEFAULT_HEADERS, ERROR_CODES } from '../config/api'
+import { authFetch } from '../utils/fetch'
 
 // Alert-specific API request function
 async function alertApiRequest<T>(
@@ -20,7 +21,7 @@ async function alertApiRequest<T>(
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 		
-		const response = await fetch(url, {
+		const response = await authFetch(url, {
 			...defaultOptions,
 			signal: controller.signal
 		})
@@ -58,6 +59,13 @@ export interface Alert {
 	is_cleared: boolean
 	cleared_at?: string
 	cleared_by?: string
+	case_name?: string
+	column?: string
+	table?: string
+	owner?: string
+	alert_times?: number
+	last_alert?: string
+	date?: string
 }
 
 export interface AlertCount {
@@ -77,6 +85,10 @@ export interface AlertListParams {
 	size?: number
 	severity?: string
 	alert_type?: string
+	case_name?: string
+	column?: string
+	table?: string
+	owner?: string
 }
 
 // Alert API functions
@@ -94,6 +106,10 @@ export const alertService = {
 		if (params.size) searchParams.append('size', params.size.toString())
 		if (params.severity) searchParams.append('severity', params.severity)
 		if (params.alert_type) searchParams.append('alert_type', params.alert_type)
+		if (params.case_name) searchParams.append('case_name', params.case_name)
+		if (params.column) searchParams.append('column', params.column)
+		if (params.table) searchParams.append('table', params.table)
+		if (params.owner) searchParams.append('owner', params.owner)
 		
 		const url = `${API_ENDPOINTS.alerts.list}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 		return alertApiRequest<AlertListResponse>(url)

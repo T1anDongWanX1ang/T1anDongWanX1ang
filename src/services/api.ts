@@ -1,4 +1,5 @@
 import { currentApiConfig, API_ENDPOINTS, DEFAULT_HEADERS, ERROR_CODES } from '../config/api'
+import { authFetch } from '../utils/fetch'
 
 // 通用请求函数
 async function apiRequest<T>(
@@ -20,7 +21,7 @@ async function apiRequest<T>(
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 		
-		const response = await fetch(url, {
+		const response = await authFetch(url, {
 			...defaultOptions,
 			signal: controller.signal
 		})
@@ -67,7 +68,7 @@ async function apiRequest1<T>(
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 		
-		const response = await fetch(url, {
+		const response = await authFetch(url, {
 			...defaultOptions,
 			signal: controller.signal
 		})
@@ -428,13 +429,12 @@ export const fieldParsingAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				body: formData,
 				// 不设置Content-Type，让浏览器自动设置multipart/form-data
 				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest'
+					'Accept': 'application/json'
 				},
 				signal: controller.signal
 			})
@@ -600,7 +600,7 @@ export const fieldParsingAPI = {
 			const url = `${currentApiConfig.baseUrl}/api/v1/start-flink-job`
 			console.log('🚀 启动 Flink 任务:', url)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
@@ -648,7 +648,7 @@ export const fieldParsingAPI = {
 			const url = `${currentApiConfig.baseUrl}${endpoint}`
 			console.log('🔍 获取组件配置:', url)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
@@ -738,7 +738,7 @@ export const fieldParsingAPI = {
 			const url = `${currentApiConfig.baseUrl}/api/v1/get-job-info?${params.toString()}`
 			console.log('🔍 请求 Flink 任务信息:', url)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
@@ -894,13 +894,12 @@ export const fileAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				body: formData,
 				// 不设置Content-Type，让浏览器自动设置multipart/form-data
 				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest'
+					'Accept': 'application/json'
 				},
 				signal: controller.signal
 			})
@@ -930,7 +929,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
@@ -961,7 +960,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
@@ -993,7 +992,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: {
 					'Accept': 'application/json',
@@ -1062,7 +1061,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: {
 					'Accept': 'application/json',
@@ -1096,7 +1095,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: DEFAULT_HEADERS,
 				body: JSON.stringify(request),
@@ -1127,7 +1126,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: DEFAULT_HEADERS,
 				signal: controller.signal
@@ -1163,7 +1162,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: DEFAULT_HEADERS,
 				signal: controller.signal
@@ -1194,7 +1193,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'GET',
 				headers: DEFAULT_HEADERS,
 				signal: controller.signal
@@ -1225,7 +1224,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'DELETE',
 				headers: DEFAULT_HEADERS,
 				signal: controller.signal
@@ -1256,7 +1255,7 @@ export const pipelineAPI = {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'DELETE',
 				headers: DEFAULT_HEADERS,
 				signal: controller.signal

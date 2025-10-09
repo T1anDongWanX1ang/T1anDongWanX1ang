@@ -84,8 +84,7 @@ export const debugAPI = {
 				method: 'POST',
 				body: formData,
 				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest'
+					'Accept': 'application/json'
 				},
 				signal: AbortSignal.timeout(10000)
 			})

@@ -19,10 +19,11 @@ export function buildApiUrl(endpoint: string, params?: Record<string, string>): 
 // 导出配置好的axios实例
 export { apiClient };
 
-// 认证相关API
+// Authentication related APIs
 export const authApi = {
   challenge: () => buildApiUrl(API_ENDPOINTS.auth.challenge),
   verify: () => buildApiUrl(API_ENDPOINTS.auth.verify),
+  refresh: () => buildApiUrl(API_ENDPOINTS.auth.refresh),
   logout: () => buildApiUrl(API_ENDPOINTS.auth.logout),
 };
 

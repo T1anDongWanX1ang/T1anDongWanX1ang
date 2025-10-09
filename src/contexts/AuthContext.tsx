@@ -37,10 +37,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // 检查认证状态
   const checkAuth = async (): Promise<boolean> => {
+    console.log('🔍 AuthContext: Starting authentication check...');
     try {
       const token = localStorage.getItem('access_token');
+      const tokenExpires = localStorage.getItem('token_expires_at');
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      console.log('🔍 AuthContext: Token info:', {
+        hasToken: !!token,
+        hasRefreshToken: !!refreshToken,
+        tokenExpires: tokenExpires,
+        currentTime: Math.floor(Date.now() / 1000)
+      });
 
       if (!token) {
+        console.log('❌ AuthContext: No access token found');
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -49,9 +60,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return false;
       }
 
-      // 验证token并获取用户信息
-      const response = await apiClient.get(usersApi.profile());
+      // 检查token是否已过期（提前检查避免无效请求）
+      if (tokenExpires) {
+        const expirationTime = parseInt(tokenExpires);
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (currentTime >= expirationTime) {
+          console.log('⏰ AuthContext: Token expired, clearing auth state');
+          // Token已过期，直接清除状态而不是尝试请求
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('token_expires_at');
+
+          setAuthState({
+            isAuthenticated: false,
+            user: null,
+            isLoading: false
+          });
+          return false;
+        }
+      }
+
+      console.log('📡 AuthContext: Making API call to verify token...');
+      // 验证token并获取用户信息 - 添加超时限制
+      const response = await Promise.race([
+        apiClient.get(usersApi.profile()),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Authentication timeout')), 5000)
+        )
+      ]) as any;
       const user = response.data;
+
+      console.log('✅ AuthContext: Authentication successful, user:', user);
 
       setAuthState({
         isAuthenticated: true,
@@ -60,10 +99,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
       return true;
     } catch (error: any) {
-      console.error('Authentication check failed:', error);
+      console.error('❌ AuthContext: Authentication check failed:', error);
+      console.error('❌ AuthContext: Error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
 
-      // 清除无效token
+      // Clear invalid tokens
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('token_expires_at');
 
       setAuthState({
         isAuthenticated: false,
@@ -85,9 +131,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
 
-  // 登出
+  // Logout
   const logout = () => {
     localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
 
     setAuthState({
       isAuthenticated: false,

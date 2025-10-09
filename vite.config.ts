@@ -5,6 +5,15 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './', // 使用相对路径，便于部署
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8002',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
   build: {
     outDir: 'pipeline-ui',
     sourcemap: false, // 生产环境不生成 sourcemap

@@ -45,13 +45,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         challenge: challenge
       });
 
-      const { access_token, user } = verifyResponse.data;
+      const { access_token, refresh_token, user_info, expires_in } = verifyResponse.data;
 
-      // 保存token到localStorage
+      // Calculate expiration timestamp and save tokens to localStorage
+      const expiresAt = Math.floor(Date.now() / 1000) + expires_in;
       localStorage.setItem('access_token', access_token);
+      localStorage.setItem('refresh_token', refresh_token);
+      localStorage.setItem('token_expires_at', expiresAt.toString());
 
-      // 调用成功回调
-      onLoginSuccess(user);
+      // Call success callback with user info and token
+      onLoginSuccess(user_info);
 
     } catch (err: any) {
       console.error('Login failed:', err);

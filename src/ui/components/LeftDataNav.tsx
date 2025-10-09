@@ -43,7 +43,7 @@ const getMenuItems = (userRole?: string) => {
 }
 
 interface LeftDataNavProps {
-	onOpenTab?: (tabType: MenuSection, pipelineId?: number) => void
+	onOpenTab?: (tabType: MenuSection, pipelineId?: number) => void;
 }
 
 export default function LeftDataNav({ onOpenTab }: LeftDataNavProps) {

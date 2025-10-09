@@ -12,12 +12,13 @@ import Step6 from '../steps/Step6'
 import StepNavigation from './StepNavigation'
 import AbiManagement from '../pages/AbiManagement'
 import ConfigurationManagement from '../pages/ConfigurationManagement'
+import UserManagement from '../pages/UserManagement'
 import { AddAbiModal, EditAbiModal, ViewAbiModal, UploadAbiModal } from './AbiModals'
 import { ErrorBoundaryWrapper } from './ErrorBoundary'
 import type { ContractAbi } from '../../services/abiService'
 
 // Tab type definition
-type TabType = 'config' | 'abi' | 'management'
+type TabType = 'config' | 'abi' | 'management' | 'users'
 
 interface Tab {
 	id: string
@@ -100,13 +101,15 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 		const tabId = `${type}-tab`
 		const tabTitles = {
 			config: 'Configuration Management',
-			abi: 'ABI Management', 
-			management: 'Unified Management'
+			abi: 'ABI Management',
+			management: 'Unified Management',
+			users: 'User Management'
 		}
 		const tabIcons = {
 			config: '⚙️',
 			abi: '📄',
-			management: '📊'
+			management: '📊',
+			users: '👥'
 		}
 
 		const newTab: Tab = {
@@ -491,7 +494,7 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 	// Render unified management content
 	const renderManagementContent = () => (
 		<div className="h-full overflow-auto p-4">
-			<ConfigurationManagement 
+			<ConfigurationManagement
 				onEditConfiguration={(pipelineId: number) => {
 					// Switch to Configuration Management Tab and select pipeline
 					setSelectedPipelineId(pipelineId)
@@ -500,6 +503,13 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 					openTab('config', pipelineId)
 				}}
 			/>
+		</div>
+	)
+
+	// Render user management content
+	const renderUserManagement = () => (
+		<div className="h-full overflow-auto" style={{border: 'none', outline: 'none'}}>
+			<UserManagement />
 		</div>
 	)
 
@@ -513,6 +523,8 @@ const RightTabSystem = forwardRef<{ openTab: (type: TabType, pipelineId?: number
 					return renderAbiManagement()
 				case 'management':
 					return renderManagementContent()
+				case 'users':
+					return renderUserManagement()
 				default:
 					return <div className="p-4">Unknown Tab type</div>
 			}

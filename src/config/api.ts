@@ -88,14 +88,30 @@ export const API_ENDPOINTS = {
 		clearAll: '/api/v1/alerts/clear-all',
 		clearSingle: '/api/v1/alerts/{id}',
 		createTest: '/api/v1/alerts/test'
+	},
+
+	// 认证相关
+	auth: {
+		challenge: '/api/v1/auth/challenge',
+		verify: '/api/v1/auth/verify',
+		refresh: '/api/v1/auth/refresh',
+		logout: '/api/v1/auth/logout'
+	},
+
+	// 用户管理相关
+	users: {
+		profile: '/api/v1/users/me/profile',
+		list: '/api/v1/users/',
+		create: '/api/v1/users/',
+		update: '/api/v1/users/{userId}',
+		delete: '/api/v1/users/{userId}'
 	}
 }
 
 // 请求头配置
 export const DEFAULT_HEADERS = {
 	'Content-Type': 'application/json',
-	'Accept': 'application/json',
-	'X-Requested-With': 'XMLHttpRequest'
+	'Accept': 'application/json'
 }
 
 // 错误码映射

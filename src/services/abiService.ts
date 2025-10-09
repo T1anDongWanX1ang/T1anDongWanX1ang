@@ -1,4 +1,5 @@
 import { currentApiConfig, DEFAULT_HEADERS, ERROR_CODES } from '../config/api'
+import { authFetch } from '../utils/fetch'
 
 // ABI相关的TypeScript接口定义
 export interface ContractAbi {
@@ -88,7 +89,7 @@ async function abiApiRequest<T>(
 		const controller = new AbortController()
 		const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 		
-		const response = await fetch(url, {
+		const response = await authFetch(url, {
 			...defaultOptions,
 			signal: controller.signal
 		})
@@ -209,12 +210,11 @@ export class AbiService {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), currentApiConfig.timeout)
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				body: formData,
 				headers: {
-					'Accept': 'application/json',
-					'X-Requested-With': 'XMLHttpRequest'
+					'Accept': 'application/json'
 				},
 				signal: controller.signal
 			})
@@ -244,7 +244,7 @@ export class AbiService {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分钟超时
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: {
 					...DEFAULT_HEADERS,
@@ -284,7 +284,7 @@ export class AbiService {
 			const controller = new AbortController()
 			const timeoutId = setTimeout(() => controller.abort(), 120000) // 2分钟超时
 			
-			const response = await fetch(url, {
+			const response = await authFetch(url, {
 				method: 'POST',
 				headers: {
 					...DEFAULT_HEADERS,

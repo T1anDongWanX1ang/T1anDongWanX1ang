@@ -34,6 +34,9 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 	const [pageSize, setPageSize] = useState(20)
 	const [severityFilter, setSeverityFilter] = useState<string>('')
 	const [typeFilter, setTypeFilter] = useState<string>('')
+	const [caseNameFilter, setCaseNameFilter] = useState<string>('')
+	const [tableFilter, setTableFilter] = useState<string>('')
+	const [ownerFilter, setOwnerFilter] = useState<string>('')
 
 	const { success, error: showError } = useToast()
 
@@ -47,6 +50,9 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 				size: pageSize,
 				severity: severityFilter || undefined,
 				alert_type: typeFilter || undefined,
+				case_name: caseNameFilter || undefined,
+				table: tableFilter || undefined,
+				owner: ownerFilter || undefined,
 				...params
 			})
 			
@@ -63,7 +69,7 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 	// Fetch alerts when component mounts or filters change
 	useEffect(() => {
 		fetchAlerts()
-	}, [currentPage, pageSize, severityFilter, typeFilter, refreshTrigger])
+	}, [currentPage, pageSize, severityFilter, typeFilter, caseNameFilter, tableFilter, ownerFilter, refreshTrigger])
 
 	// Clear single alert
 	const clearAlert = async (alertId: number) => {
@@ -177,7 +183,7 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 			</div>
 
 			{/* Filters */}
-			<div className="flex gap-4 mb-6">
+			<div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
 				<select
 					value={severityFilter}
 					onChange={(e) => {
@@ -207,6 +213,39 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 					<option value="performance">Performance</option>
 					<option value="test">Test</option>
 				</select>
+
+				<input
+					type="text"
+					placeholder="Case Name"
+					value={caseNameFilter}
+					onChange={(e) => {
+						setCaseNameFilter(e.target.value)
+						setCurrentPage(1) // Reset to first page
+					}}
+					className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+				/>
+
+				<input
+					type="text"
+					placeholder="Table Name"
+					value={tableFilter}
+					onChange={(e) => {
+						setTableFilter(e.target.value)
+						setCurrentPage(1) // Reset to first page
+					}}
+					className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+				/>
+
+				<input
+					type="text"
+					placeholder="Owner"
+					value={ownerFilter}
+					onChange={(e) => {
+						setOwnerFilter(e.target.value)
+						setCurrentPage(1) // Reset to first page
+					}}
+					className="px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+				/>
 
 				<select
 					value={pageSize}
@@ -260,9 +299,26 @@ export function AlertList({ refreshTrigger = 0, onAlertCleared, className = '' }
 									</p>
 									
 									<div className="text-sm text-gray-600 space-y-1">
-										<div>Source: {alert.source}</div>
-										<div>Created: {formatDate(alert.created_at)}</div>
-										<div>ID: {alert.id}</div>
+										<div className="flex flex-wrap gap-4">
+											<span>Source: {alert.source}</span>
+											<span>ID: {alert.id}</span>
+											{alert.case_name && <span>Case: {alert.case_name}</span>}
+											{alert.table && <span>Table: {alert.table}</span>}
+											{alert.column && <span>Column: {alert.column}</span>}
+											{alert.owner && <span>Owner: {alert.owner}</span>}
+										</div>
+										<div className="flex flex-wrap gap-4">
+											<span>Created: {formatDate(alert.created_at)}</span>
+											{alert.alert_times && alert.alert_times > 1 && (
+												<span className="font-medium text-orange-600">Alert Times: {alert.alert_times}</span>
+											)}
+											{alert.last_alert && alert.last_alert !== alert.created_at && (
+												<span>Last Alert: {formatDate(alert.last_alert)}</span>
+											)}
+											{alert.date && (
+												<span>Date: {alert.date}</span>
+											)}
+										</div>
 									</div>
 								</div>
 								

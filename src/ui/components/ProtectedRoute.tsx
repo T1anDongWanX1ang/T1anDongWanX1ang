@@ -8,10 +8,18 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { authState, login, checkAuth } = useAuth();
+  const { authState, login } = useAuth();
+
+  console.log('🛡️ ProtectedRoute: Current auth state:', {
+    isLoading: authState.isLoading,
+    isAuthenticated: authState.isAuthenticated,
+    user: authState.user,
+    requireAdmin
+  });
 
   // 加载中状态
   if (authState.isLoading) {
+    console.log('⏳ ProtectedRoute: Still loading, showing loading screen');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -24,10 +32,13 @@ export default function ProtectedRoute({ children, requireAdmin = false }: Prote
 
   // 未认证，显示登录页面
   if (!authState.isAuthenticated) {
-    return <Login onLoginSuccess={async (user) => {
-      // 先保存token到localStorage (Login组件已经做了)
-      // 然后调用checkAuth从服务器获取最新的用户信息
-      await checkAuth();
+    return <Login onLoginSuccess={(user) => {
+      // Login组件已经保存了token和用户信息，直接更新AuthContext状态
+      console.log('🎉 ProtectedRoute: Login successful, user:', user);
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        login(user, token);
+      }
     }} />;
   }
 

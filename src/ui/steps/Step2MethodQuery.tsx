@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { useAppState } from '../../state/AppState'
+import { useAppState, ContractMethod as AppStateContractMethod } from '../../state/AppState'
 import Box from '../components/Box'
-import { contractMethodsAPI } from '../../services/api'
+import { contractMethodsAPI, ContractMethodQueryResult } from '../../services/api'
 
 interface Step2Props {
 	onStepChange?: (step: number) => void
@@ -28,24 +28,14 @@ interface ContractMethod {
 	anonymous?: boolean | null
 }
 
-interface MethodQueryResult {
-	contract_address: string
-	chain_name: string
-	contract_name?: string | null
-	methods: ContractMethod[]
-	events: ContractMethod[]
-	functions: ContractMethod[]
-	matched_methods: ContractMethod[]
-	query_metadata?: any
-}
 
 export default function Step2MethodQuery({ onStepChange }: Step2Props = {}) {
 	const { components, updateComponent, currentPipelineId } = useAppState()
 	const [isLoading, setIsLoading] = useState(false)
 	const [eventName, setEventName] = useState('')
 	const [methodTypes, setMethodTypes] = useState<string[]>(['function', 'event'])
-	const [queryResult, setQueryResult] = useState<MethodQueryResult | null>(null)
-	const [selectedMethods, setSelectedMethods] = useState<ContractMethod[]>([])
+	const [queryResult, setQueryResult] = useState<ContractMethodQueryResult | null>(null)
+	const [selectedMethods, setSelectedMethods] = useState<AppStateContractMethod[]>([])
 	const [validationMessage, setValidationMessage] = useState('')
 	const [selectedContract, setSelectedContract] = useState<{
 		address: string
@@ -120,7 +110,7 @@ export default function Step2MethodQuery({ onStepChange }: Step2Props = {}) {
 		if (isSelected) {
 			setSelectedMethods(selectedMethods.filter(m => m.signature !== method.signature))
 		} else {
-			setSelectedMethods([...selectedMethods, method])
+			setSelectedMethods([...selectedMethods, method as AppStateContractMethod])
 		}
 	}
 
@@ -156,7 +146,7 @@ export default function Step2MethodQuery({ onStepChange }: Step2Props = {}) {
 	}
 
 	// 渲染方法卡片
-	const renderMethodCard = (method: ContractMethod, isMatched = false) => {
+	const renderMethodCard = (method: any, isMatched = false) => {
 		const isSelected = selectedMethods.some(m => m.signature === method.signature)
 		return (
 			<div
@@ -168,7 +158,7 @@ export default function Step2MethodQuery({ onStepChange }: Step2Props = {}) {
 							? 'border-green-400 bg-green-50 hover:bg-green-100'
 							: 'border-gray-200 hover:border-gray-300'
 				}`}
-				onClick={() => toggleMethodSelection(method)}
+				onClick={() => toggleMethodSelection(method as AppStateContractMethod)}
 			>
 				<div className="flex items-center justify-between mb-2">
 					<div className="flex items-center gap-2">
@@ -382,7 +372,7 @@ export default function Step2MethodQuery({ onStepChange }: Step2Props = {}) {
 									<span className="ml-2 text-sm text-gray-600">({method.type})</span>
 								</div>
 								<button
-									onClick={() => toggleMethodSelection(method)}
+									onClick={() => toggleMethodSelection(method as AppStateContractMethod)}
 									className="text-sm text-red-600 hover:text-red-800"
 								>
 									移除

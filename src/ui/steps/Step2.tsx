@@ -187,14 +187,16 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				method_params: caller.method_params || [],
 				selectedAbi: matchedAbi || {
 					id: 0,
-					file_name: caller.abi_path,
-					contract_name: caller.abi_path.replace('.json', ''),
 					contract_address: caller.contract_address,
+					contract_name: caller.abi_path.replace('.json', ''),
 					chain_name: caller.chain_name,
-					abi_path: caller.abi_path,
 					abi_content: '',
-					create_time: '',
-					update_time: ''
+					file_path: caller.abi_path,
+					file_name: caller.abi_path,
+					abi_path: caller.abi_path,
+					source_type: 'manual' as const,
+					created_at: '',
+					updated_at: ''
 				} as ContractAbi
 			}
 			
@@ -344,6 +346,7 @@ export default function Step2({ onStepChange }: Step2Props = {}) {
 				})
 				.map((func: any) => ({
 					name: func.name,
+					type: 'function' as const,
 					inputs: func.inputs || [],
 					outputs: func.outputs || [],
 					stateMutability: func.stateMutability || 'nonpayable'
