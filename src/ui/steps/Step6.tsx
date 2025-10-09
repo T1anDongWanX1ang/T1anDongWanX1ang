@@ -33,8 +33,8 @@ export default function Step6() {
 	const [currentPipelineName, setCurrentPipelineName] = useState('')
 	const [taskStatus, setTaskStatus] = useState<PipelineLatestTaskResponse['task'] | null>(null)
 	const [taskLoading, setTaskLoading] = useState(false)
-	const intervalRef = useRef<number | null>(null)
-	const logIntervalRef = useRef<number | null>(null)
+	const intervalRef = useRef<NodeJS.Timeout | null>(null)
+	const logIntervalRef = useRef<NodeJS.Timeout | null>(null)
 	const [logModalOpen, setLogModalOpen] = useState(false)
 	const [logContent, setLogContent] = useState('')
 	const [logLoading, setLogLoading] = useState(false)
@@ -560,7 +560,7 @@ export default function Step6() {
 				if (logIntervalRef.current) {
 					clearInterval(logIntervalRef.current)
 				}
-				logIntervalRef.current = window.setInterval(() => {
+				logIntervalRef.current = setInterval(() => {
 					refreshLogContent(taskStatus.task_id)
 				}, 3000)
 				console.log('🔄 已启动日志自动刷新，每3秒更新一次')
